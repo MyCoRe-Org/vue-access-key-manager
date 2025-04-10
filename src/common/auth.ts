@@ -1,4 +1,4 @@
-import { fetchJwt as mcrFetchJwt } from '@mycore-test/js-common/auth';
+import { fetchJwt as mcrFetchJwt } from '@mycore/js-common/auth';
 
 export const fetchJwt = async (
   baseUrl: string,

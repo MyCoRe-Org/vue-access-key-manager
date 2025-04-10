@@ -322,10 +322,10 @@
   resolved "https://registry.yarnpkg.com/@microsoft/tsdoc/-/tsdoc-0.15.1.tgz#d4f6937353bc4568292654efb0a0e0532adbcba2"
   integrity sha512-4aErSrCR/On/e5G2hDP0wjooqDdauzEbIq8hIkIe5pXV0rtWJZvdCEKL0ykZxex+IxIwBp0eGeV48hQN07dXtw==
 
-"@mycore-org/vue-components@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/@mycore-org/vue-components/-/vue-components-0.1.0.tgz#7467d27738064e75305f0b04802d568b97b3378e"
-  integrity sha512-DEvLZVEkCGwBDgUeYq5lzRimjPmZQVmd7XvLXzLcEn2CvnLEpVgzLVtOQUcyQJ6c2/ZOOohwEkiyfimhuzhPhw==
+"@mycore-org/vue-components@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@mycore-org/vue-components/-/vue-components-0.1.2.tgz#42155a07dab66195c2581d11d7c3f3b8b712d63c"
+  integrity sha512-2sjxRo7ItOSPgFJeuK7jnbhZ5cVzDSwSmrwg/gsX2wIdhu6VKbRdKGAfYXcBSMMZdCqVSCiyEd86f2SzAy4m8g==
 
 "@mycore/js-common@npm:@jsr/mycore__js-common@^0.0.1":
   version "0.0.1"
