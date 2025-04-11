@@ -152,7 +152,7 @@ import {
   AccessKey,
   CreateAccessKey,
   AccessKeyService,
-} from '@mycore/js-common/access-key';
+} from '@jsr/mycore__js-common/access-key';
 import { BaseModal } from '@mycore-org/vue-components';
 
 const { t } = useI18n();

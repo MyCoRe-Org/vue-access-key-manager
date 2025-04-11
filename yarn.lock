@@ -279,6 +279,11 @@
   resolved "https://registry.yarnpkg.com/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.5.0.tgz#3188bcb273a414b0d215fd22a58540b989b9409a"
   integrity sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ==
 
+"@jsr/mycore__js-common@^0.0.1":
+  version "0.0.1"
+  resolved "https://npm.jsr.io/~/11/@jsr/mycore__js-common/0.0.1.tgz#1D4C256134772FD24DF6AB8CCCDEA292A345957D"
+  integrity sha512-iRGJZh2uKEd0r25lYCotBAxLdcbyOYgiDpQaHSJJcuc2XekhWsFVwoMpIAioB0Ddq9sOlgz/2ktMimgukXIVSQ==
+
 "@microsoft/api-extractor-model@7.30.5":
   version "7.30.5"
   resolved "https://registry.yarnpkg.com/@microsoft/api-extractor-model/-/api-extractor-model-7.30.5.tgz#09b4412a3344ce8e6b58114bf350d6d0b8c86b63"
@@ -322,15 +327,10 @@
   resolved "https://registry.yarnpkg.com/@microsoft/tsdoc/-/tsdoc-0.15.1.tgz#d4f6937353bc4568292654efb0a0e0532adbcba2"
   integrity sha512-4aErSrCR/On/e5G2hDP0wjooqDdauzEbIq8hIkIe5pXV0rtWJZvdCEKL0ykZxex+IxIwBp0eGeV48hQN07dXtw==
 
-"@mycore-org/vue-components@^0.1.2":
-  version "0.1.2"
-  resolved "https://registry.yarnpkg.com/@mycore-org/vue-components/-/vue-components-0.1.2.tgz#42155a07dab66195c2581d11d7c3f3b8b712d63c"
-  integrity sha512-2sjxRo7ItOSPgFJeuK7jnbhZ5cVzDSwSmrwg/gsX2wIdhu6VKbRdKGAfYXcBSMMZdCqVSCiyEd86f2SzAy4m8g==
-
-"@mycore/js-common@npm:@jsr/mycore__js-common@^0.0.1":
-  version "0.0.1"
-  resolved "https://npm.jsr.io/~/11/@jsr/mycore__js-common/0.0.1.tgz#1D4C256134772FD24DF6AB8CCCDEA292A345957D"
-  integrity sha512-iRGJZh2uKEd0r25lYCotBAxLdcbyOYgiDpQaHSJJcuc2XekhWsFVwoMpIAioB0Ddq9sOlgz/2ktMimgukXIVSQ==
+"@mycore-org/vue-components@^0.1.5":
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/@mycore-org/vue-components/-/vue-components-0.1.5.tgz#4986315044ea69f672992b14662f34182a534db5"
+  integrity sha512-n+0KjkzouqiyILWivagRYKQ3E27vzdRvjJmtqIeFwgsncpisSCmu7aOb5A57nNdL0BhTH7IaGuFeHG4IYuDR6A==
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"

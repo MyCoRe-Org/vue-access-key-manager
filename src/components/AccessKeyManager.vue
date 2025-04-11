@@ -64,7 +64,7 @@ import { ref, onMounted, onErrorCaptured, computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { urlEncode } from '@/common/utils';
-import { AccessKey, AccessKeyService } from '@mycore/js-common/access-key';
+import { AccessKey, AccessKeyService } from '@jsr/mycore__js-common/access-key';
 import AccessKeyTable from './AccessKeyTable.vue';
 import AccessKeyInfoModal from './AccessKeyInfoModal.vue';
 import CreateAccessKeyModal from './CreateAccessKeyModal.vue';
@@ -74,7 +74,10 @@ import {
   useConfirmModal,
 } from '@mycore-org/vue-components';
 import { fetchJwt } from '@/common/auth';
-import { AuthStrategy, AccessTokenAuthStrategy } from '@mycore/js-common/auth';
+import {
+  AuthStrategy,
+  AccessTokenAuthStrategy,
+} from '@jsr/mycore__js-common/auth';
 import { getI18nKey } from '@/common/utils';
 
 const router = useRouter();

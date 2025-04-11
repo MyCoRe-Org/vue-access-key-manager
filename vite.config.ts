@@ -24,7 +24,7 @@ export default defineConfig({
         ) {
           return true;
         }
-        if (id.startsWith('@mycore/js-common/')) {
+        if (id.startsWith('@jsr/mycore__js-common/')) {
           return true;
         }
         return false;

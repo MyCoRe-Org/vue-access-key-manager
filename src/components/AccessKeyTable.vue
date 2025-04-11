@@ -55,7 +55,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { AccessKey } from '@mycore/js-common/access-key';
+import { AccessKey } from '@jsr/mycore__js-common/access-key';
 import { convertUnixToIso, getI18nKey } from '@/common/utils';
 
 const { t } = useI18n();

@@ -119,7 +119,7 @@ import {
   AccessKey,
   PartialUpdateAccessKey,
   AccessKeyService,
-} from '@mycore/js-common/access-key';
+} from '@jsr/mycore__js-common/access-key';
 import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
 
 interface FormData {
