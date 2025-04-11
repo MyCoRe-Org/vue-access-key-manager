@@ -190,10 +190,10 @@ const updateAccessKey = (accessKey: AccessKey): void => {
   state.infoModalVisible = false;
 };
 
-const getActivationLink = (secret: string): string =>
+const getActivationLink = (reference: string, secret: string): string =>
   t(getI18nKey('success.add.url.format'), {
     baseUrl: props.baseUrl,
-    reference: props.reference ?? '',
+    reference,
     secret: urlEncode(secret),
   });
 
@@ -204,17 +204,20 @@ const addAccessKey = async (
   let message = t(getI18nKey('success.add'), {
     secret,
   });
-  if (props.allowedSessionPermissions?.includes(accessKey.type)) {
+  if (
+    accessKey.reference.includes('_mods_') &&
+    props.allowedSessionPermissions?.includes(accessKey.type)
+  ) {
     message = message.concat(
       ' ',
       t(getI18nKey('success.add.url')),
       ' ',
-      getActivationLink(secret)
+      getActivationLink(accessKey.reference, secret)
     );
   }
   state.totalCount += 1;
   state.accessKeys.push(accessKey);
-  await confirm('Access Key created', message, { okOnly: true });
+  await confirm(getI18nKey('success.add.title'), message, { okOnly: true });
 };
 const initAccessKeyService = async () => {
   const authStrategy = !props.authStrategy
