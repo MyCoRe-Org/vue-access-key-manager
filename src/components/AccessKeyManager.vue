@@ -217,7 +217,7 @@ const addAccessKey = async (
   }
   state.totalCount += 1;
   state.accessKeys.push(accessKey);
-  await confirm(getI18nKey('success.add.title'), message, { okOnly: true });
+  await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
 };
 const initAccessKeyService = async () => {
   const authStrategy = !props.authStrategy
