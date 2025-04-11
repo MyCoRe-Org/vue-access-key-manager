@@ -60,7 +60,7 @@
           {{ t(getI18nKey('label.permission')) }}
         </label>
         <select
-          v-if="permissions && permissions.length > 0"
+          v-if="permissions"
           id="inputPermission"
           v-model="form.type"
           class="form-select"
