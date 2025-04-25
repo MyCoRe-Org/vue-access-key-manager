@@ -118,7 +118,7 @@ import { BaseModal } from '@mycore-org/vue-components';
 import {
   AccessKey,
   PartialUpdateAccessKey,
-  AccessKeyService,
+  AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
 import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
 
@@ -134,7 +134,7 @@ const { t } = useI18n();
 
 const props = defineProps<{
   accessKey: AccessKey | undefined;
-  accessKeyService?: AccessKeyService;
+  accessKeyClient?: AccessKeyApiClient;
   permissions?: string[];
   reference?: string;
 }>();
@@ -205,17 +205,17 @@ const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   return updatedAccessKey;
 };
 const updateAccessKey = async (): Promise<void> => {
-  if (props.accessKeyService && !isBusy.value) {
+  if (props.accessKeyClient && !isBusy.value) {
     isBusy.value = true;
     v.value.$validate();
     if (!v.value.$invalid && props.accessKey) {
       const partialUpdatedAccessKey = buildAccessKeyPayload();
       try {
-        await props.accessKeyService.patchAccessKey(
+        await props.accessKeyClient.patchAccessKey(
           props.accessKey.id,
           partialUpdatedAccessKey
         );
-        const updatedAccessKey = await props.accessKeyService.getAccessKey(
+        const updatedAccessKey = await props.accessKeyClient.getAccessKey(
           props.accessKey.id
         );
         emit('update-access-key', updatedAccessKey);

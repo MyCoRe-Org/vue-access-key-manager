@@ -43,7 +43,7 @@
   </div>
   <CreateAccessKeyModal
     v-model:visible="state.createModalVisible"
-    :access-key-service="accessKeyService"
+    :access-key-client="accessKeyClient"
     :reference="reference"
     :permissions="permissions"
     @add-access-key="addAccessKey"
@@ -51,7 +51,7 @@
   <AccessKeyInfoModal
     v-model:visible="state.infoModalVisible"
     :access-key="state.selectedAccessKey"
-    :access-key-service="accessKeyService"
+    :access-key-client="accessKeyClient"
     :permissions="permissions"
     :reference="reference"
     @update-access-key="updateAccessKey"
@@ -64,7 +64,10 @@ import { ref, onMounted, onErrorCaptured, computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { urlEncode } from '@/common/utils';
-import { AccessKey, AccessKeyService } from '@jsr/mycore__js-common/access-key';
+import {
+  AccessKey,
+  AccessKeyApiClient,
+} from '@jsr/mycore__js-common/access-key';
 import AccessKeyTable from './AccessKeyTable.vue';
 import AccessKeyInfoModal from './AccessKeyInfoModal.vue';
 import CreateAccessKeyModal from './CreateAccessKeyModal.vue';
@@ -122,15 +125,15 @@ const state = reactive({
   createModalVisible: false,
   infoModalVisible: false,
 });
-const accessKeyService = ref<AccessKeyService>();
+const accessKeyClient = ref<AccessKeyApiClient>();
 
 const paginatedAccessKeys = computed(() =>
   state.accessKeys.slice(0, state.pageSize)
 );
 const fetchAccessKeys = async (): Promise<void> => {
-  if (accessKeyService.value) {
+  if (accessKeyClient.value) {
     const offset = (state.currentPage - 1) * state.pageSize;
-    const result = await accessKeyService.value.getAccessKeys({
+    const result = await accessKeyClient.value.getAccessKeys({
       permissions: props.permissions,
       reference: props.reference,
       offset,
@@ -170,7 +173,7 @@ const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
   if (await confirm(title, message)) {
     state.loading = true;
     try {
-      await accessKeyService.value?.deleteAccessKey(accessKey.id);
+      await accessKeyClient.value?.deleteAccessKey(accessKey.id);
       state.accessKeys = state.accessKeys.filter(
         (a: AccessKey) => a.id !== accessKey.id
       );
@@ -219,7 +222,7 @@ const addAccessKey = async (
   state.accessKeys.push(accessKey);
   await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
 };
-const initAccessKeyService = async () => {
+const initAccessKeyClient = async () => {
   const authStrategy = !props.authStrategy
     ? new AccessTokenAuthStrategy(
         await fetchJwt(
@@ -229,10 +232,7 @@ const initAccessKeyService = async () => {
         )
       )
     : props.authStrategy;
-  accessKeyService.value = new AccessKeyService(
-    props.baseUrl,
-    () => authStrategy
-  );
+  accessKeyClient.value = new AccessKeyApiClient(props.baseUrl, authStrategy);
 };
 const handleError = (error: unknown): void => {
   emit('error', error);
@@ -240,7 +240,7 @@ const handleError = (error: unknown): void => {
 onMounted(async (): Promise<void> => {
   try {
     state.loading = true;
-    await initAccessKeyService();
+    await initAccessKeyClient();
     await fetchAccessKeys();
   } catch (error) {
     handleError(error);

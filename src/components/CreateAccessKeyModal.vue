@@ -151,14 +151,14 @@ import {
 import {
   AccessKey,
   CreateAccessKey,
-  AccessKeyService,
+  AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
 import { BaseModal } from '@mycore-org/vue-components';
 
 const { t } = useI18n();
 
 const props = defineProps<{
-  accessKeyService?: AccessKeyService;
+  accessKeyClient?: AccessKeyApiClient;
   reference?: string;
   permissions?: string[];
 }>();
@@ -232,14 +232,14 @@ const getAccessKey = (): CreateAccessKey => {
   return accessKey;
 };
 const handleCreateAccessKey = async (): Promise<void> => {
-  if (props.accessKeyService && !isBusy.value && (await validateForm())) {
+  if (props.accessKeyClient && !isBusy.value && (await validateForm())) {
     isBusy.value = true;
     try {
       const accessKey = getAccessKey();
       const accessKeyId =
-        await props.accessKeyService.createAccessKey(accessKey);
+        await props.accessKeyClient.createAccessKey(accessKey);
       const createdAccessKey =
-        await props.accessKeyService.getAccessKey(accessKeyId);
+        await props.accessKeyClient.getAccessKey(accessKeyId);
       emit('add-access-key', form.value.secret, createdAccessKey);
       visible.value = false;
     } catch (error) {
