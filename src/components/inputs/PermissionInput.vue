@@ -7,7 +7,6 @@
     id="inputPermission"
     v-model="model"
     class="form-select"
-    required
     :class="{ 'is-invalid': invalid }"
   >
     <option v-for="option in permissions" :key="option" :value="option">

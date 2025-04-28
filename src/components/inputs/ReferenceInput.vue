@@ -8,7 +8,6 @@
     type="text"
     :disabled="reference !== undefined"
     class="form-control"
-    required
     :class="{ 'is-invalid': invalid }"
   />
 </template>
