@@ -20,91 +20,27 @@
       @submit.prevent="handleSubmit"
     >
       <div class="col-12">
-        <label for="inputReference" class="form-label">
-          {{ t(getI18nKey('label.reference')) }}
-        </label>
-        <input
-          id="inputReference"
+        <ReferenceInput
           v-model="form.reference"
-          type="text"
-          :disabled="reference !== undefined"
-          class="form-control"
-          required
-          :class="{ 'is-invalid': submitted && !form.reference }"
+          :invalid="submitted && !form.reference"
+          :reference="reference"
         />
       </div>
       <div class="col-md-6">
-        <label for="inputPermission" class="form-label">
-          {{ t(getI18nKey('label.permission')) }}
-        </label>
-        <select
-          v-if="permissions"
-          id="inputPermission"
+        <PermissionInput
           v-model="form.type"
-          class="form-select"
-          required
-          :class="{ 'is-invalid': submitted && !form.type }"
-        >
-          <option
-            v-for="permissionValue in permissions"
-            :key="permissionValue"
-            :value="permissionValue"
-          >
-            {{ t(getI18nKey(`label.permission.${permissionValue}`)) }}
-          </option>
-        </select>
-        <input
-          v-else
-          id="inputPermission"
-          v-model="form.type"
-          type="text"
-          class="form-control"
-          required
-          :class="{ 'is-invalid': submitted && !form.type }"
-        />
+          :invalid="submitted && !form.type"
+          :permissions="permissions"
+        ></PermissionInput>
       </div>
       <div class="col-md-6">
-        <label for="expirationInput" class="form-label">
-          {{ t(getI18nKey('label.expiration')) }}
-        </label>
-        <div class="input-group">
-          <input
-            id="expirationInput"
-            v-model="form.expiration"
-            :min="today"
-            type="date"
-            class="form-control"
-            @keydown.prevent
-          />
-        </div>
+        <ExpirationInput v-model="form.expiration" />
       </div>
       <div class="col-12">
-        <div class="form-check">
-          <input
-            id="inputActive"
-            v-model="form.isActive"
-            class="form-check-input"
-            type="checkbox"
-          />
-          <label
-            class="form-check-label"
-            for="inputActive"
-            @click.prevent="form.isActive = !form.isActive"
-          >
-            {{ t(getI18nKey('label.active')) }}
-          </label>
-        </div>
+        <ActiveInput v-model="form.isActive" />
       </div>
       <div class="col-12">
-        <label for="commentTextarea" class="form-label">
-          {{ t(getI18nKey('label.comment')) }}
-        </label>
-        <textarea
-          id="commentTextarea"
-          v-model="form.comment"
-          class="form-control"
-          rows="3"
-        />
+        <CommentInput v-model="form.comment" />
       </div>
     </form>
     <template #modal-footer>
@@ -135,12 +71,12 @@ import {
   PartialUpdateAccessKey,
   AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
-import {
-  getI18nKey,
-  convertUnixToIso,
-  getUnixTimestamp,
-  today,
-} from '@/common/utils';
+import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
+import PermissionInput from './inputs/PermissionInput.vue';
+import ReferenceInput from './inputs/ReferenceInput.vue';
+import ActiveInput from './inputs/ActiveInput.vue';
+import ExpirationInput from './inputs/ExpirationInput.vue';
+import CommentInput from './inputs/CommentInput.vue';
 
 interface FormData {
   reference: string;
@@ -221,8 +157,10 @@ const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   return updatedAccessKey;
 };
 const handleSubmit = async (): Promise<void> => {
+  if (isBusy.value) return;
   submitted.value = true;
-  if (isBusy.value || !formRef.value?.checkValidity()) return;
+  if (!formRef.value?.checkValidity()) return;
+  isBusy.value = true;
   if (props.accessKeyClient) {
     isBusy.value = true;
     if (props.accessKey) {

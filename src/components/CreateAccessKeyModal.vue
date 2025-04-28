@@ -25,117 +25,33 @@
       @submit.prevent="handleSubmit"
     >
       <div class="col-12">
-        <label for="inputReference" class="form-label">
-          {{ t(getI18nKey('label.reference')) }}
-        </label>
-        <input
-          id="inputReference"
+        <ReferenceInput
           v-model="form.reference"
-          type="text"
-          :disabled="reference !== undefined"
-          class="form-control"
-          required
-          :class="{ 'is-invalid': submitted && !form.reference }"
+          :invalid="submitted && !form.reference"
+          :reference="reference"
         />
       </div>
-
       <div class="col-12">
-        <label for="inputSecret" class="form-label">
-          {{ t(getI18nKey('label.secret')) }}
-        </label>
-        <div class="input-group mb-3">
-          <span class="input-group-prepend">
-            <button
-              class="btn btn-primary"
-              type="button"
-              aria-label="generate secret"
-              @click="generateSecret"
-            >
-              <i class="fa fa-random" />
-            </button>
-          </span>
-          <input
-            id="inputSecret"
-            v-model="form.secret"
-            type="text"
-            class="form-control"
-            required
-            :class="{ 'is-invalid': submitted && !form.secret }"
-          />
-        </div>
-      </div>
-      <div class="col-md-6">
-        <label for="inputPermission" class="form-label">
-          {{ t(getI18nKey('label.permission')) }}
-        </label>
-        <select
-          v-if="permissions"
-          id="inputPermission"
-          v-model="form.type"
-          class="form-select"
-          required
-          :class="{ 'is-invalid': submitted && !form.type }"
-        >
-          <option
-            v-for="permissionValue in permissions"
-            :key="permissionValue"
-            :value="permissionValue"
-          >
-            {{ permissionValue }}
-          </option>
-        </select>
-        <input
-          v-else
-          id="inputPermission"
-          v-model="form.type"
-          type="text"
-          class="form-control"
-          required
-          :class="{ 'is-invalid': submitted && !form.type }"
+        <SecretInput
+          v-model="form.secret"
+          :invalid="submitted && !form.secret"
         />
       </div>
       <div class="col-md-6">
-        <label for="expirationInput" class="form-label">
-          {{ t(getI18nKey('label.expiration')) }}
-        </label>
-        <div class="input-group">
-          <input
-            id="expirationInput"
-            v-model="form.expiration"
-            :min="today"
-            type="date"
-            class="form-control"
-            @keydown.prevent
-          />
-        </div>
+        <PermissionInput
+          v-model="form.type"
+          :invalid="submitted && !form.type"
+          :permissions="permissions"
+        ></PermissionInput>
+      </div>
+      <div class="col-md-6">
+        <ExpirationInput v-model="form.expiration" />
       </div>
       <div class="col-12">
-        <div class="form-check">
-          <input
-            id="inputActive"
-            v-model="form.isActive"
-            class="form-check-input"
-            type="checkbox"
-          />
-          <label
-            class="form-check-label"
-            for="inputActive"
-            @click.prevent="form.isActive = !form.isActive"
-          >
-            {{ t(getI18nKey('label.active')) }}
-          </label>
-        </div>
+        <ActiveInput id="inputActive" v-model="form.isActive" />
       </div>
       <div class="col-12">
-        <label for="commentTextarea" class="form-label">
-          {{ t(getI18nKey('label.comment')) }}
-        </label>
-        <textarea
-          id="commentTextarea"
-          v-model="form.comment"
-          class="form-control"
-          rows="3"
-        />
+        <CommentInput v-model="form.comment" />
       </div>
     </form>
     <template #modal-footer>
@@ -160,18 +76,19 @@
 <script setup lang="ts">
 import { ref, ModelRef, onErrorCaptured } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-  getI18nKey,
-  generateRandomString,
-  getUnixTimestamp,
-  today,
-} from '@/common/utils';
+import { getI18nKey, getUnixTimestamp } from '@/common/utils';
 import {
   AccessKey,
   CreateAccessKey,
   AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
 import { BaseModal } from '@mycore-org/vue-components';
+import PermissionInput from './inputs/PermissionInput.vue';
+import ReferenceInput from './inputs/ReferenceInput.vue';
+import SecretInput from './inputs/SecretInput.vue';
+import ActiveInput from './inputs/ActiveInput.vue';
+import ExpirationInput from './inputs/ExpirationInput.vue';
+import CommentInput from './inputs/CommentInput.vue';
 
 const { t } = useI18n();
 
@@ -210,6 +127,7 @@ const handleError = (error: unknown): void => {
 };
 const resetForm = (): void => {
   form.value = { ...defaultForm };
+  submitted.value = false;
 };
 const resetContent = (): void => {
   errorMessage.value = undefined;
@@ -234,10 +152,11 @@ const getAccessKey = (): CreateAccessKey => {
 };
 
 const handleSubmit = async (): Promise<void> => {
+  if (isBusy.value) return;
   submitted.value = true;
-  if (isBusy.value || !formRef.value?.checkValidity()) return;
+  if (!formRef.value?.checkValidity()) return;
+  isBusy.value = true;
   if (props.accessKeyClient) {
-    isBusy.value = true;
     try {
       const accessKey = getAccessKey();
       const accessKeyId =
@@ -256,9 +175,6 @@ const handleSubmit = async (): Promise<void> => {
 };
 const submitForm = () => {
   formRef.value?.requestSubmit();
-};
-const generateSecret = (): void => {
-  form.value.secret = generateRandomString(16);
 };
 onErrorCaptured((err): boolean => {
   handleError(err.message);
