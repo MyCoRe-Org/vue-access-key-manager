@@ -18,7 +18,12 @@
     <div>
       <p>{{ t(getI18nKey('description.createAccesskey')) }}</p>
     </div>
-    <form class="row g-3">
+    <form
+      ref="formRef"
+      class="row g-3"
+      novalidate
+      @submit.prevent="handleSubmit"
+    >
       <div class="col-12">
         <label for="inputReference" class="form-label">
           {{ t(getI18nKey('label.reference')) }}
@@ -29,6 +34,8 @@
           type="text"
           :disabled="reference !== undefined"
           class="form-control"
+          required
+          :class="{ 'is-invalid': submitted && !form.reference }"
         />
       </div>
 
@@ -52,6 +59,8 @@
             v-model="form.secret"
             type="text"
             class="form-control"
+            required
+            :class="{ 'is-invalid': submitted && !form.secret }"
           />
         </div>
       </div>
@@ -64,6 +73,8 @@
           id="inputPermission"
           v-model="form.type"
           class="form-select"
+          required
+          :class="{ 'is-invalid': submitted && !form.type }"
         >
           <option
             v-for="permissionValue in permissions"
@@ -79,6 +90,8 @@
           v-model="form.type"
           type="text"
           class="form-control"
+          required
+          :class="{ 'is-invalid': submitted && !form.type }"
         />
       </div>
       <div class="col-md-6">
@@ -89,8 +102,10 @@
           <input
             id="expirationInput"
             v-model="form.expiration"
+            :min="today"
             type="date"
             class="form-control"
+            @keydown.prevent
           />
         </div>
       </div>
@@ -123,8 +138,8 @@
       <button
         type="button"
         class="btn btn-primary"
-        :disabled="isBusy || v.$invalid"
-        @click="handleCreateAccessKey"
+        :disabled="isBusy"
+        @click="submitForm"
       >
         <span
           v-if="isBusy"
@@ -141,12 +156,11 @@
 <script setup lang="ts">
 import { ref, ModelRef, onErrorCaptured } from 'vue';
 import { useI18n } from 'vue-i18n';
-import useVuelidate from '@vuelidate/core';
-import { required } from '@vuelidate/validators';
 import {
   getI18nKey,
   generateRandomString,
   getUnixTimestamp,
+  today,
 } from '@/common/utils';
 import {
   AccessKey,
@@ -171,20 +185,6 @@ const visible: ModelRef<boolean> = defineModel<boolean>('visible', {
   default: false,
 });
 
-const rules = {
-  reference: {
-    required,
-  },
-  type: {
-    required,
-  },
-  secret: {
-    required,
-  },
-};
-
-const errorMessage = ref<string>();
-const isBusy = ref<boolean>(false);
 const defaultForm = {
   reference: props.reference !== undefined ? props.reference : '',
   isActive: true,
@@ -193,26 +193,23 @@ const defaultForm = {
   comment: undefined,
   expiration: null,
 };
+
+const submitted = ref<boolean>(false);
 const form = ref<CreateAccessKey>({ ...defaultForm });
-const v = useVuelidate(rules, form);
+const formRef = ref<HTMLFormElement | null>(null);
+
+const errorMessage = ref<string>();
+const isBusy = ref<boolean>(false);
 const handleError = (error: unknown): void => {
   errorMessage.value =
     error instanceof Error ? error.message : t(getI18nKey('error.fatal'));
 };
 const resetForm = (): void => {
   form.value = { ...defaultForm };
-  v.value.$reset();
 };
 const resetContent = (): void => {
   errorMessage.value = undefined;
   resetForm();
-};
-const validateForm = async (): Promise<boolean> => {
-  v.value.$validate();
-  if (v.value.$invalid) {
-    return false;
-  }
-  return true;
 };
 const getAccessKey = (): CreateAccessKey => {
   const accessKey: CreateAccessKey = {
@@ -231,8 +228,11 @@ const getAccessKey = (): CreateAccessKey => {
   }
   return accessKey;
 };
-const handleCreateAccessKey = async (): Promise<void> => {
-  if (props.accessKeyClient && !isBusy.value && (await validateForm())) {
+
+const handleSubmit = async (): Promise<void> => {
+  submitted.value = true;
+  if (isBusy.value || !formRef.value?.checkValidity()) return;
+  if (props.accessKeyClient) {
     isBusy.value = true;
     try {
       const accessKey = getAccessKey();
@@ -241,6 +241,7 @@ const handleCreateAccessKey = async (): Promise<void> => {
       const createdAccessKey =
         await props.accessKeyClient.getAccessKey(accessKeyId);
       emit('add-access-key', form.value.secret, createdAccessKey);
+      submitted.value = false;
       visible.value = false;
     } catch (error) {
       handleError(error);
@@ -248,6 +249,9 @@ const handleCreateAccessKey = async (): Promise<void> => {
       isBusy.value = false;
     }
   }
+};
+const submitForm = () => {
+  formRef.value?.requestSubmit();
 };
 const generateSecret = (): void => {
   form.value.secret = generateRandomString(16);

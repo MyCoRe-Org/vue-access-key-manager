@@ -13,7 +13,12 @@
     >
       {{ $t(errorMessage) }}
     </div>
-    <form class="row g-3">
+    <form
+      ref="formRef"
+      class="row g-3"
+      novalidate
+      @submit.prevent="handleSubmit"
+    >
       <div class="col-12">
         <label for="inputReference" class="form-label">
           {{ t(getI18nKey('label.reference')) }}
@@ -24,6 +29,8 @@
           type="text"
           :disabled="reference !== undefined"
           class="form-control"
+          required
+          :class="{ 'is-invalid': submitted && !form.reference }"
         />
       </div>
       <div class="col-md-6">
@@ -35,6 +42,8 @@
           id="inputPermission"
           v-model="form.type"
           class="form-select"
+          required
+          :class="{ 'is-invalid': submitted && !form.type }"
         >
           <option
             v-for="permissionValue in permissions"
@@ -50,6 +59,8 @@
           v-model="form.type"
           type="text"
           class="form-control"
+          required
+          :class="{ 'is-invalid': submitted && !form.type }"
         />
       </div>
       <div class="col-md-6">
@@ -60,8 +71,10 @@
           <input
             id="expirationInput"
             v-model="form.expiration"
+            :min="today"
             type="date"
             class="form-control"
+            @keydown.prevent
           />
         </div>
       </div>
@@ -94,8 +107,8 @@
       <button
         type="button"
         class="btn btn-primary"
-        :disabled="isBusy || v.$invalid"
-        @click="updateAccessKey"
+        :disabled="isBusy"
+        @click="submitForm"
       >
         <span
           v-if="isBusy"
@@ -112,15 +125,18 @@
 <script setup lang="ts">
 import { ref, onErrorCaptured, watch, ModelRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { required } from '@vuelidate/validators';
-import useVuelidate from '@vuelidate/core';
 import { BaseModal } from '@mycore-org/vue-components';
 import {
   AccessKey,
   PartialUpdateAccessKey,
   AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
-import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
+import {
+  getI18nKey,
+  convertUnixToIso,
+  getUnixTimestamp,
+  today,
+} from '@/common/utils';
 
 interface FormData {
   reference: string;
@@ -149,6 +165,8 @@ const emit = defineEmits<{
 
 const errorMessage = ref<string | undefined>(undefined);
 const isBusy = ref<boolean>(false);
+const submitted = ref<boolean>(false);
+const formRef = ref<HTMLFormElement | null>(null);
 const form = ref<FormData>({
   reference: '',
   type: '',
@@ -156,11 +174,6 @@ const form = ref<FormData>({
   comment: undefined,
   expiration: null,
 });
-
-const rules = {
-  reference: { required },
-  type: { required },
-};
 
 watch(
   () => props.accessKey,
@@ -177,7 +190,6 @@ watch(
   }
 );
 
-const v = useVuelidate(rules, form);
 const handleError = (error: unknown): void => {
   errorMessage.value =
     error instanceof Error ? error.message : t(getI18nKey('error.fatal'));
@@ -204,11 +216,12 @@ const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   }
   return updatedAccessKey;
 };
-const updateAccessKey = async (): Promise<void> => {
-  if (props.accessKeyClient && !isBusy.value) {
+const handleSubmit = async (): Promise<void> => {
+  submitted.value = true;
+  if (isBusy.value || !formRef.value?.checkValidity()) return;
+  if (props.accessKeyClient) {
     isBusy.value = true;
-    v.value.$validate();
-    if (!v.value.$invalid && props.accessKey) {
+    if (props.accessKey) {
       const partialUpdatedAccessKey = buildAccessKeyPayload();
       try {
         await props.accessKeyClient.patchAccessKey(
@@ -229,6 +242,9 @@ const updateAccessKey = async (): Promise<void> => {
       isBusy.value = false;
     }
   }
+};
+const submitForm = () => {
+  formRef.value?.requestSubmit();
 };
 onErrorCaptured((err): boolean => {
   handleError(err);
