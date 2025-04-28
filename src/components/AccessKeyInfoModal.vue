@@ -86,7 +86,11 @@
             class="form-check-input"
             type="checkbox"
           />
-          <label class="form-check-label" for="inputActive">
+          <label
+            class="form-check-label"
+            for="inputActive"
+            @click.prevent="form.isActive = !form.isActive"
+          >
             {{ t(getI18nKey('label.active')) }}
           </label>
         </div>
