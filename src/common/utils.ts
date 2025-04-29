@@ -41,5 +41,3 @@ export const urlEncode = (value: string): string => encodeURIComponent(value);
 
 export const getI18nKey = (value: string): string =>
   `component.acl.accesskey.frontend.${value}`;
-
-export const today = new Date().toISOString().split('T')[0];

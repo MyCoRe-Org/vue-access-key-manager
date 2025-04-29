@@ -15,10 +15,10 @@
 </template>
 
 <script setup lang="ts">
-import { today } from '@/common/utils';
 import { useI18n } from 'vue-i18n';
 import { getI18nKey } from '@/common/utils';
 
 const { t } = useI18n();
 const model = defineModel<number | string | null>();
+const today = new Date().toISOString().split('T')[0];
 </script>
