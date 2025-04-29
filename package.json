@@ -2,7 +2,7 @@
   "name": "@mycore-org/vue-access-key-manager",
   "private": false,
   "license": "GPL-3.0-or-later",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "type": "module",
   "module": "./dist/vue-access-key-manager.js",
   "style": "./dist/vue-access-key-manager.css",
@@ -19,7 +19,7 @@
   },
   "peerDependencies": {
     "@mycore-org/vue-components": "^0.1.5",
-    "@jsr/mycore__js-common": "^0.0.8",
+    "@jsr/mycore__js-common": "^0.0.7",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.0",
     "vue-router": "^4.5.0"
