@@ -13,89 +13,42 @@
     >
       {{ $t(errorMessage) }}
     </div>
-    <form class="row g-3">
+    <form
+      ref="formRef"
+      class="row g-3"
+      novalidate
+      @submit.prevent="handleSubmit"
+    >
       <div class="col-12">
-        <label for="inputReference" class="form-label">
-          {{ t(getI18nKey('label.reference')) }}
-        </label>
-        <input
-          id="inputReference"
+        <ReferenceInput
           v-model="form.reference"
-          type="text"
-          :disabled="reference !== undefined"
-          class="form-control"
+          :invalid="submitted && !form.reference"
+          :reference="reference"
         />
       </div>
       <div class="col-md-6">
-        <label for="inputPermission" class="form-label">
-          {{ t(getI18nKey('label.permission')) }}
-        </label>
-        <select
-          v-if="permissions"
-          id="inputPermission"
+        <PermissionInput
           v-model="form.type"
-          class="form-select"
-        >
-          <option
-            v-for="permissionValue in permissions"
-            :key="permissionValue"
-            :value="permissionValue"
-          >
-            {{ t(getI18nKey(`label.permission.${permissionValue}`)) }}
-          </option>
-        </select>
-        <input
-          v-else
-          id="inputPermission"
-          v-model="form.type"
-          type="text"
-          class="form-control"
-        />
+          :invalid="submitted && !form.type"
+          :permissions="permissions"
+        ></PermissionInput>
       </div>
       <div class="col-md-6">
-        <label for="expirationInput" class="form-label">
-          {{ t(getI18nKey('label.expiration')) }}
-        </label>
-        <div class="input-group">
-          <input
-            id="expirationInput"
-            v-model="form.expiration"
-            type="date"
-            class="form-control"
-          />
-        </div>
+        <ExpirationInput v-model="form.expiration" />
       </div>
       <div class="col-12">
-        <div class="form-check">
-          <input
-            id="inputActive"
-            v-model="form.isActive"
-            class="form-check-input"
-            type="checkbox"
-          />
-          <label class="form-check-label" for="inputActive">
-            {{ t(getI18nKey('label.active')) }}
-          </label>
-        </div>
+        <ActiveInput v-model="form.isActive" />
       </div>
       <div class="col-12">
-        <label for="commentTextarea" class="form-label">
-          {{ t(getI18nKey('label.comment')) }}
-        </label>
-        <textarea
-          id="commentTextarea"
-          v-model="form.comment"
-          class="form-control"
-          rows="3"
-        />
+        <CommentInput v-model="form.comment" />
       </div>
     </form>
     <template #modal-footer>
       <button
         type="button"
         class="btn btn-primary"
-        :disabled="isBusy || v.$invalid"
-        @click="updateAccessKey"
+        :disabled="isBusy"
+        @click="submitForm"
       >
         <span
           v-if="isBusy"
@@ -112,8 +65,6 @@
 <script setup lang="ts">
 import { ref, onErrorCaptured, watch, ModelRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { required } from '@vuelidate/validators';
-import useVuelidate from '@vuelidate/core';
 import { BaseModal } from '@mycore-org/vue-components';
 import {
   AccessKey,
@@ -121,6 +72,11 @@ import {
   AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
 import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
+import PermissionInput from './inputs/PermissionInput.vue';
+import ReferenceInput from './inputs/ReferenceInput.vue';
+import ActiveInput from './inputs/ActiveInput.vue';
+import ExpirationInput from './inputs/ExpirationInput.vue';
+import CommentInput from './inputs/CommentInput.vue';
 
 interface FormData {
   reference: string;
@@ -149,6 +105,8 @@ const emit = defineEmits<{
 
 const errorMessage = ref<string | undefined>(undefined);
 const isBusy = ref<boolean>(false);
+const submitted = ref<boolean>(false);
+const formRef = ref<HTMLFormElement | null>(null);
 const form = ref<FormData>({
   reference: '',
   type: '',
@@ -156,11 +114,6 @@ const form = ref<FormData>({
   comment: undefined,
   expiration: null,
 });
-
-const rules = {
-  reference: { required },
-  type: { required },
-};
 
 watch(
   () => props.accessKey,
@@ -177,7 +130,6 @@ watch(
   }
 );
 
-const v = useVuelidate(rules, form);
 const handleError = (error: unknown): void => {
   errorMessage.value =
     error instanceof Error ? error.message : t(getI18nKey('error.fatal'));
@@ -204,11 +156,14 @@ const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   }
   return updatedAccessKey;
 };
-const updateAccessKey = async (): Promise<void> => {
-  if (props.accessKeyClient && !isBusy.value) {
+const handleSubmit = async (): Promise<void> => {
+  if (isBusy.value) return;
+  submitted.value = true;
+  if (!formRef.value?.checkValidity()) return;
+  isBusy.value = true;
+  if (props.accessKeyClient) {
     isBusy.value = true;
-    v.value.$validate();
-    if (!v.value.$invalid && props.accessKey) {
+    if (props.accessKey) {
       const partialUpdatedAccessKey = buildAccessKeyPayload();
       try {
         await props.accessKeyClient.patchAccessKey(
@@ -229,6 +184,9 @@ const updateAccessKey = async (): Promise<void> => {
       isBusy.value = false;
     }
   }
+};
+const submitForm = () => {
+  formRef.value?.requestSubmit();
 };
 onErrorCaptured((err): boolean => {
   handleError(err);
