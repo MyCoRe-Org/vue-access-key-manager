@@ -19,7 +19,6 @@
     v-model="model"
     type="text"
     class="form-control"
-    required
     :class="{ 'is-invalid': invalid }"
   />
 </template>

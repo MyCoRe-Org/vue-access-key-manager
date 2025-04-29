@@ -14,7 +14,7 @@
       {{ $t(errorMessage) }}
     </div>
     <form
-      ref="formRef"
+      id="updateForm"
       class="row g-3"
       novalidate
       @submit.prevent="handleSubmit"
@@ -22,16 +22,16 @@
       <div class="col-12">
         <ReferenceInput
           v-model="form.reference"
-          :invalid="submitted && !form.reference"
           :reference="reference"
+          :invalid="submitted && !isReferenceValid"
         />
       </div>
       <div class="col-md-6">
         <PermissionInput
           v-model="form.type"
-          :invalid="submitted && !form.type"
           :permissions="permissions"
-        ></PermissionInput>
+          :invalid="submitted && !isPermissionValid"
+        />
       </div>
       <div class="col-md-6">
         <ExpirationInput v-model="form.expiration" />
@@ -45,10 +45,10 @@
     </form>
     <template #modal-footer>
       <button
-        type="button"
+        type="submit"
         class="btn btn-primary"
         :disabled="isBusy"
-        @click="submitForm"
+        form="updateForm"
       >
         <span
           v-if="isBusy"
@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured, watch, ModelRef } from 'vue';
+import { ref, onErrorCaptured, watch, ModelRef, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { BaseModal } from '@mycore-org/vue-components';
 import {
@@ -106,7 +106,6 @@ const emit = defineEmits<{
 const errorMessage = ref<string | undefined>(undefined);
 const isBusy = ref<boolean>(false);
 const submitted = ref<boolean>(false);
-const formRef = ref<HTMLFormElement | null>(null);
 const form = ref<FormData>({
   reference: '',
   type: '',
@@ -114,6 +113,8 @@ const form = ref<FormData>({
   comment: undefined,
   expiration: null,
 });
+const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
+const isPermissionValid = computed(() => form.value.type.trim().length > 0);
 
 watch(
   () => props.accessKey,
@@ -156,10 +157,15 @@ const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   }
   return updatedAccessKey;
 };
+
+const validateFrom = (): boolean => {
+  return isReferenceValid.value && isPermissionValid.value;
+};
+
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
-  if (!formRef.value?.checkValidity()) return;
+  if (!validateFrom()) return;
   isBusy.value = true;
   if (props.accessKeyClient) {
     isBusy.value = true;
@@ -184,9 +190,6 @@ const handleSubmit = async (): Promise<void> => {
       isBusy.value = false;
     }
   }
-};
-const submitForm = () => {
-  formRef.value?.requestSubmit();
 };
 onErrorCaptured((err): boolean => {
   handleError(err);

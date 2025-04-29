@@ -19,7 +19,7 @@
       <p>{{ t(getI18nKey('description.createAccesskey')) }}</p>
     </div>
     <form
-      ref="formRef"
+      id="createForm"
       class="row g-3"
       novalidate
       @submit.prevent="handleSubmit"
@@ -27,22 +27,22 @@
       <div class="col-12">
         <ReferenceInput
           v-model="form.reference"
-          :invalid="submitted && !form.reference"
           :reference="reference"
+          :invalid="submitted && !isReferenceValid"
         />
       </div>
       <div class="col-12">
         <SecretInput
           v-model="form.secret"
-          :invalid="submitted && !form.secret"
+          :invalid="submitted && !isSecretValid"
         />
       </div>
       <div class="col-md-6">
         <PermissionInput
           v-model="form.type"
-          :invalid="submitted && !form.type"
           :permissions="permissions"
-        ></PermissionInput>
+          :invalid="submitted && !isPermissionValid"
+        />
       </div>
       <div class="col-md-6">
         <ExpirationInput v-model="form.expiration" />
@@ -56,10 +56,10 @@
     </form>
     <template #modal-footer>
       <button
-        type="button"
+        type="submit"
         class="btn btn-primary"
         :disabled="isBusy"
-        @click="submitForm"
+        form="createForm"
       >
         <span
           v-if="isBusy"
@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, ModelRef, onErrorCaptured } from 'vue';
+import { ref, ModelRef, onErrorCaptured, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getI18nKey, getUnixTimestamp } from '@/common/utils';
 import {
@@ -115,9 +115,11 @@ const defaultForm = {
   expiration: null,
 };
 
-const submitted = ref<boolean>(false);
 const form = ref<CreateAccessKey>({ ...defaultForm });
-const formRef = ref<HTMLFormElement | null>(null);
+const submitted = ref<boolean>(false);
+const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
+const isSecretValid = computed(() => form.value.secret.trim().length > 0);
+const isPermissionValid = computed(() => form.value.type.trim().length > 0);
 
 const errorMessage = ref<string>();
 const isBusy = ref<boolean>(false);
@@ -151,10 +153,16 @@ const getAccessKey = (): CreateAccessKey => {
   return accessKey;
 };
 
+const validateFrom = (): boolean => {
+  return (
+    isReferenceValid.value && isSecretValid.value && isPermissionValid.value
+  );
+};
+
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
-  if (!formRef.value?.checkValidity()) return;
+  if (!validateFrom()) return;
   isBusy.value = true;
   if (props.accessKeyClient) {
     try {
@@ -172,9 +180,6 @@ const handleSubmit = async (): Promise<void> => {
       isBusy.value = false;
     }
   }
-};
-const submitForm = () => {
-  formRef.value?.requestSubmit();
 };
 onErrorCaptured((err): boolean => {
   handleError(err.message);
