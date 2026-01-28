@@ -7,30 +7,26 @@ on:
 
 permissions:
   id-token: write  # Required for OIDC
-  contents: read
+  contents: write  # Required for release
 
 jobs:
   publish:
     runs-on: ubuntu-22.04
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-
+        uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: '20.14.0'
           registry-url: 'https://registry.npmjs.org'
-
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-
       - name: Build production
         run: yarn build
-
       - name: Publish to npm
-        run: yarn publish --access public
-
+        run: yarn npm publish --access public
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
