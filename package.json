@@ -1,7 +1,7 @@
 {
   "name": "@mycore-org/vue-access-key-manager",
   "license": "GPL-3.0-or-later",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "type": "module",
   "module": "./dist/vue-access-key-manager.js",
   "style": "./dist/vue-access-key-manager.css",
