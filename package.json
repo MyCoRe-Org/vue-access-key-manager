@@ -49,5 +49,9 @@
     "type": "git",
     "url": "https://github.com/MyCoRe-Org/vue-access-key-manager.git"
   },
+  "bugs": {
+    "url": "https://github.com/MyCoRe-Org/vue-access-key-manager/issues"
+  },
+  "homepage": "https://github.com/MyCoRe-Org/vue-access-key-manager#readme",
   "packageManager": "yarn@4.12.0"
 }
