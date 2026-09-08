@@ -13,7 +13,7 @@
       role="alert"
       aria-live="polite"
     >
-      {{ t(errorMessage) }}
+      {{ errorMessage }}
     </div>
     <div>
       <p>{{ t(getI18nKey('description.createAccesskey')) }}</p>
@@ -182,7 +182,7 @@ const handleSubmit = async (): Promise<void> => {
   }
 };
 onErrorCaptured((err): boolean => {
-  handleError(err.message);
+  handleError(err);
   return false;
 });
 </script>

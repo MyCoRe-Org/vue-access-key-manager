@@ -11,7 +11,7 @@
       role="alert"
       aria-live="assertive"
     >
-      {{ $t(errorMessage) }}
+      {{ errorMessage }}
     </div>
     <form
       id="updateForm"

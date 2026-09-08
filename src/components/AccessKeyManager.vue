@@ -60,7 +60,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onErrorCaptured, computed, reactive } from 'vue';
+import {
+  ref,
+  inject,
+  onMounted,
+  onErrorCaptured,
+  computed,
+  reactive,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { urlEncode } from '@/common/utils';
@@ -77,21 +84,16 @@ import {
   useConfirmModal,
 } from '@mycore-org/vue-components';
 import { fetchJwt } from '@/common/auth';
-import {
-  AuthStrategy,
-  AccessTokenAuthStrategy,
-} from '@jsr/mycore__js-common/auth';
+import { AccessTokenAuthStrategy } from '@jsr/mycore__js-common/auth';
 import { getI18nKey } from '@/common/utils';
+import { AccessKeyManagerStateKey } from '@/plugin';
 
 const router = useRouter();
 const route = useRoute();
 
 interface ManagerProps {
-  baseUrl: string;
-  authStrategy?: AuthStrategy;
   reference?: string;
   permissions?: string[];
-  allowedSessionPermissions?: string[];
   currentPage?: number;
   pageSize?: number;
   routerEnabled?: boolean;
@@ -100,12 +102,18 @@ interface ManagerProps {
 const props = withDefaults(defineProps<ManagerProps>(), {
   reference: undefined,
   permissions: undefined,
-  allowedSessionPermissions: undefined,
-  authStrategy: undefined,
   currentPage: 1,
   pageSize: 8,
   routerEnabled: false,
 });
+
+const accessKeyManagerState = inject(AccessKeyManagerStateKey);
+if (!accessKeyManagerState) {
+  throw new Error(
+    'AccessKeyManager: no AccessKeyManagerPlugin installed - call ' +
+      'app.use(createAccessKeyManager({ baseUrl, ... })) before mounting this component.'
+  );
+}
 
 const emit = defineEmits<{
   (event: 'error', error: unknown): void;
@@ -195,7 +203,7 @@ const updateAccessKey = (accessKey: AccessKey): void => {
 
 const getActivationLink = (reference: string, secret: string): string =>
   t(getI18nKey('success.add.url.format'), {
-    baseUrl: props.baseUrl,
+    baseUrl: accessKeyManagerState.baseUrl,
     reference,
     secret: urlEncode(secret),
   });
@@ -209,7 +217,9 @@ const addAccessKey = async (
   });
   if (
     accessKey.reference.includes('_mods_') &&
-    props.allowedSessionPermissions?.includes(accessKey.type)
+    accessKeyManagerState.accessKeyConfig.allowedSessionPermissions?.includes(
+      accessKey.type
+    )
   ) {
     message = message.concat(
       ' ',
@@ -223,16 +233,20 @@ const addAccessKey = async (
   await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
 };
 const initAccessKeyClient = async () => {
-  const authStrategy = !props.authStrategy
+  const resolvedAuthStrategy = !accessKeyManagerState.authStrategy
     ? new AccessTokenAuthStrategy(
         await fetchJwt(
-          props.baseUrl,
+          accessKeyManagerState.baseUrl,
           props.reference,
-          props.allowedSessionPermissions !== undefined
+          accessKeyManagerState.accessKeyConfig.allowedSessionPermissions !==
+            undefined
         )
       )
-    : props.authStrategy;
-  accessKeyClient.value = new AccessKeyApiClient(props.baseUrl, authStrategy);
+    : accessKeyManagerState.authStrategy;
+  accessKeyClient.value = new AccessKeyApiClient(
+    accessKeyManagerState.baseUrl,
+    resolvedAuthStrategy
+  );
 };
 const handleError = (error: unknown): void => {
   emit('error', error);
