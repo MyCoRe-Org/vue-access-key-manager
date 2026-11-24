@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { toRaw } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { AccessKeyApiClient } from '@jsr/mycore__js-common/access-key';
@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   confirm: undefined as unknown as ReturnType<typeof vi.fn>,
   route: { query: {} as Record<string, string> },
   router: { push: undefined as unknown as ReturnType<typeof vi.fn> },
+  errorHandler: undefined as unknown as Mock<(error: unknown) => void>,
 }));
 
 vi.mock('@jsr/mycore__js-common/access-key', () => ({
@@ -67,6 +68,7 @@ const mountManager = async (
     global: {
       plugins: [i18n, createAccessKeyManager({ baseUrl, ...options })],
       stubs: { BaseModal: BaseModalStub, ConfirmModal: true },
+      config: { errorHandler: mocks.errorHandler },
     },
     props,
   });
@@ -92,6 +94,7 @@ describe('AccessKeyManager', () => {
     mocks.confirm = vi.fn().mockResolvedValue(true);
     mocks.route.query = {};
     mocks.router.push = vi.fn();
+    mocks.errorHandler = vi.fn<(error: unknown) => void>();
     vi.mocked(fetchJwt).mockResolvedValue('jwt-token');
   });
 
@@ -206,6 +209,47 @@ describe('AccessKeyManager', () => {
   });
 
   describe('pagination', () => {
+    it('hides the loading overlay when a page fails to load', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 2,
+      });
+      const wrapper = await mountManager({ pageSize: 1 });
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      await flushPromises();
+      expect(
+        wrapper.get<HTMLElement>('#loading-overlay').element.style.visibility
+      ).toBe('hidden');
+      expect(wrapper.emitted('error')).toHaveLength(1);
+      expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores the response of an older request', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 2,
+      });
+      const wrapper = await mountManager({ pageSize: 1 });
+      const pending: ((value: unknown) => void)[] = [];
+      mocks.client.getAccessKeys.mockImplementation(
+        () => new Promise(resolve => pending.push(resolve))
+      );
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1)[0]);
+      await flushPromises();
+      pending[1]({ accessKeys: [], totalCount: 1 });
+      pending[0]({ accessKeys: [keys(1, 1)[0]], totalCount: 2 });
+      await flushPromises();
+      expect(wrapper.getComponent(AccessKeyTable).props('accessKeys')).toEqual(
+        []
+      );
+    });
+  });
+
+  describe('pagination with pages', () => {
     beforeEach(() => {
       mocks.client.getAccessKeys.mockImplementation(
         async ({ offset, limit }: { offset: number; limit: number }) => ({
@@ -284,6 +328,42 @@ describe('AccessKeyManager', () => {
           .props('accessKeys')
           .map((k: { id: string }) => k.id)
       ).toEqual(['key-2', 'key-3']);
+    });
+
+    it('removes the deleted key even if the reload fails', async () => {
+      const wrapper = await mountManager();
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(2)[0]);
+      await flushPromises();
+      expect(
+        wrapper
+          .getComponent(AccessKeyTable)
+          .props('accessKeys')
+          .map((k: { id: string }) => k.id)
+      ).toEqual(['key-2']);
+      expect(wrapper.emitted('error')).toHaveLength(1);
+      expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('jumps to the last page when the list shrank by several pages', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: [keys(1, 32)[0]],
+        totalCount: 33,
+      });
+      const wrapper = await mountManager({ currentPage: 5, pageSize: 8 });
+      mocks.client.getAccessKeys
+        .mockResolvedValueOnce({ accessKeys: [], totalCount: 22 })
+        .mockResolvedValueOnce({ accessKeys: keys(6, 16), totalCount: 22 });
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1, 32)[0]);
+      await flushPromises();
+      expect(mocks.client.getAccessKeys).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 16, limit: 8 })
+      );
+      expect(wrapper.emitted('page-change')).toEqual([[3]]);
     });
 
     it('goes back a page after deleting its last key', async () => {
@@ -399,6 +479,21 @@ describe('AccessKeyManager', () => {
         expect(props.reference).toBe('mir_mods_1');
         expect(props.permissions).toEqual(['read']);
       }
+    });
+
+    it('shows the secret even if the reload fails', async () => {
+      const wrapper = await mountManager();
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      wrapper
+        .getComponent(CreateAccessKeyModal)
+        .vm.$emit('add-access-key', 'my-secret', createAccessKey());
+      await flushPromises();
+      expect(mocks.confirm).toHaveBeenCalledWith(
+        'Created',
+        'Secret: my-secret.',
+        { okOnly: true }
+      );
+      expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
     });
 
     it('reloads the page and shows the secret after creating', async () => {

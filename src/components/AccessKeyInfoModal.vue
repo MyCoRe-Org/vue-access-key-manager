@@ -106,6 +106,7 @@ const emit = defineEmits<{
 const errorMessage = ref<string | undefined>(undefined);
 const isBusy = ref<boolean>(false);
 const submitted = ref<boolean>(false);
+const initialForm = ref<FormData>();
 const form = ref<FormData>({
   reference: '',
   type: '',
@@ -120,7 +121,7 @@ watch(
   [() => props.accessKey, visible],
   ([accessKey, isVisible]) => {
     if (!accessKey || !isVisible) return;
-    form.value = {
+    initialForm.value = {
       type: accessKey.type,
       reference: accessKey.reference,
       isActive: accessKey.isActive,
@@ -129,6 +130,7 @@ watch(
         : null,
       comment: accessKey.comment,
     };
+    form.value = { ...initialForm.value };
     errorMessage.value = undefined;
     submitted.value = false;
   },
@@ -141,22 +143,22 @@ const handleError = (error: unknown): void => {
 };
 const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   const updatedAccessKey: PartialUpdateAccessKey = {};
-  if (form.value.reference !== props.accessKey?.reference) {
+  const initial = initialForm.value;
+  if (form.value.reference !== initial?.reference) {
     updatedAccessKey.reference = form.value.reference;
   }
-  if (form.value.comment !== props.accessKey?.comment) {
+  if ((form.value.comment ?? '') !== (initial?.comment ?? '')) {
     updatedAccessKey.comment = form.value.comment;
   }
-  if (form.value.type !== props.accessKey?.type) {
+  if (form.value.type !== initial?.type) {
     updatedAccessKey.type = form.value.type;
   }
-  const expiration = form.value.expiration
-    ? getUnixTimestamp(form.value.expiration)
-    : null;
-  if (expiration !== props.accessKey?.expiration) {
-    updatedAccessKey.expiration = expiration;
+  if ((form.value.expiration || null) !== initial?.expiration) {
+    updatedAccessKey.expiration = form.value.expiration
+      ? getUnixTimestamp(form.value.expiration)
+      : null;
   }
-  if (form.value.isActive !== props.accessKey?.isActive) {
+  if (form.value.isActive !== initial?.isActive) {
     updatedAccessKey.isActive = form.value.isActive;
   }
   return updatedAccessKey;

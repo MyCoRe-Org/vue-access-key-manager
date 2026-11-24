@@ -172,6 +172,31 @@ describe('AccessKeyInfoModal', () => {
     expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {});
   });
 
+  it.each([
+    [
+      'an expiration that is not UTC midnight',
+      { expiration: Date.UTC(2030, 5, 15, 12) },
+    ],
+    ['no expiration field', { expiration: undefined }],
+    ['no comment field', { comment: undefined }],
+  ])('sends an empty patch for a key with %s', async (_, overrides) => {
+    const selected = createAccessKey({ ...overrides });
+    client.getAccessKey.mockResolvedValue(selected);
+    const wrapper = await mountModal({}, selected);
+    await submit(wrapper);
+    expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {});
+  });
+
+  it('treats a cleared comment as unchanged when there was none', async () => {
+    const selected = createAccessKey({ comment: undefined });
+    client.getAccessKey.mockResolvedValue(selected);
+    const wrapper = await mountModal({}, selected);
+    await field(wrapper, 'comment').setValue('typed');
+    await field(wrapper, 'comment').setValue('');
+    await submit(wrapper);
+    expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {});
+  });
+
   it('patches reference, type and expiration', async () => {
     client.getAccessKey.mockResolvedValue(accessKey);
     const wrapper = await mountModal();

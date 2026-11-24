@@ -138,8 +138,10 @@ const accessKeyClient = ref<AccessKeyApiClient>();
 const paginatedAccessKeys = computed(() =>
   state.accessKeys.slice(0, state.pageSize)
 );
+let latestRequest = 0;
 const fetchAccessKeys = async (): Promise<void> => {
   if (accessKeyClient.value) {
+    const request = ++latestRequest;
     const offset = (state.currentPage - 1) * state.pageSize;
     const result = await accessKeyClient.value.getAccessKeys({
       permissions: props.permissions,
@@ -147,6 +149,7 @@ const fetchAccessKeys = async (): Promise<void> => {
       offset,
       limit: state.pageSize,
     });
+    if (request !== latestRequest) return;
     state.accessKeys = result.accessKeys;
     state.totalCount = result.totalCount;
   }
@@ -158,8 +161,11 @@ const openAccessKeyInfoModal = (index: number): void => {
 const changePage = async (page: number): Promise<void> => {
   state.loading = true;
   state.currentPage = page;
-  await fetchAccessKeys();
-  state.loading = false;
+  try {
+    await fetchAccessKeys();
+  } finally {
+    state.loading = false;
+  }
   emit('page-change', page);
   if (props.routerEnabled) {
     router.push({
@@ -182,12 +188,17 @@ const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
     state.loading = true;
     try {
       await accessKeyClient.value?.deleteAccessKey(accessKey.id);
+      state.accessKeys = state.accessKeys.filter(
+        (a: AccessKey) => a.id !== accessKey.id
+      );
+      state.totalCount -= 1;
       await fetchAccessKeys();
     } finally {
       state.loading = false;
     }
-    if (state.accessKeys.length === 0 && state.currentPage > 1) {
-      await changePage(state.currentPage - 1);
+    const lastPage = Math.max(1, Math.ceil(state.totalCount / state.pageSize));
+    if (state.currentPage > lastPage) {
+      await changePage(lastPage);
     }
   }
 };
@@ -228,13 +239,13 @@ const addAccessKey = async (
       getActivationLink(accessKey.reference, secret)
     );
   }
+  await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
   state.loading = true;
   try {
     await fetchAccessKeys();
   } finally {
     state.loading = false;
   }
-  await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
 };
 const initAccessKeyClient = async () => {
   const resolvedAuthStrategy = !accessKeyManagerState.authStrategy

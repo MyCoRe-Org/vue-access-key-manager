@@ -54,14 +54,29 @@ describe('ExpirationInput', () => {
   });
 
   it.each([
-    ['America/New_York', '2026-01-15T03:00:00Z', '2026-01-14'],
+    ['America/New_York', '2026-01-15T03:00:00Z', '2026-01-16'],
     ['Europe/Berlin', '2026-01-14T23:30:00Z', '2026-01-15'],
-  ])('only allows dates from the local today on in %s', (zone, now, today) => {
-    process.env.TZ = zone;
+    ['Europe/Berlin', '2026-01-15T12:00:00Z', '2026-01-16'],
+  ])(
+    'only allows dates whose UTC midnight is still ahead in %s at %s',
+    (zone, now, min) => {
+      process.env.TZ = zone;
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(now));
+      const wrapper = mount(ExpirationInput, { global });
+      expect(wrapper.get('input[type="date"]').attributes('min')).toBe(min);
+    }
+  );
+
+  it('updates the earliest date when focused after midnight', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(now));
+    vi.setSystemTime(new Date('2026-01-15T23:00:00Z'));
     const wrapper = mount(ExpirationInput, { global });
-    expect(wrapper.get('input[type="date"]').attributes('min')).toBe(today);
+    const input = wrapper.get('input[type="date"]');
+    expect(input.attributes('min')).toBe('2026-01-16');
+    vi.setSystemTime(new Date('2026-01-16T01:00:00Z'));
+    await input.trigger('focus');
+    expect(input.attributes('min')).toBe('2026-01-17');
   });
 
   it('binds the date input to the model', async () => {
