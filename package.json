@@ -12,7 +12,8 @@
   ],
   "scripts": {
     "build": "vite build",
-    "lint": "eslint src --max-warnings 0"
+    "lint": "eslint src tests --max-warnings 0",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "@jsr/mycore__js-common": "^0.0.7",
@@ -27,6 +28,7 @@
     "@popperjs/core": "^2.11.8",
     "@types/node": "^22.19.17",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.6.0",
     "@vue/tsconfig": "^0.7.0",
     "bootstrap": "^5.3.8",
     "eslint": "^9.39.4",
@@ -34,12 +36,14 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-vue": "^9.33.0",
     "font-awesome": "^4.7.0",
+    "jsdom": "^31.0.1",
     "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.2",
     "vite": "^6.4.2",
     "vite-plugin-dts": "^4.5.4",
     "vite-plugin-eslint2": "^5.1.0",
+    "vitest": "^5.1.1",
     "vue": "^3.5.34",
     "vue-i18n": "^11.4.0",
     "vue-router": "^4.6.4",
