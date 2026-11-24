@@ -1,44 +1,16 @@
 name: CI
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  setup:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enable corepack
-        run: corepack enable 
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-      - name: Install dependencies
-        run: yarn install
-
-  lint:
-    runs-on: ubuntu-22.04
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-      - name: Run lint test
-        run: yarn lint
-
   build:
-    runs-on: ubuntu-22.04
-    needs: setup
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        id: yarn-cache
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-      - name: Run build test
-        run: yarn build
+    uses: MyCoRe-Org/github-workflows/.github/workflows/node-build.yml@v1
+    with:
+      node-version: '24'
