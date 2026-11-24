@@ -182,12 +182,12 @@ const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
     state.loading = true;
     try {
       await accessKeyClient.value?.deleteAccessKey(accessKey.id);
-      state.accessKeys = state.accessKeys.filter(
-        (a: AccessKey) => a.id !== accessKey.id
-      );
-      state.totalCount -= 1;
+      await fetchAccessKeys();
     } finally {
       state.loading = false;
+    }
+    if (state.accessKeys.length === 0 && state.currentPage > 1) {
+      await changePage(state.currentPage - 1);
     }
   }
 };
@@ -228,8 +228,12 @@ const addAccessKey = async (
       getActivationLink(accessKey.reference, secret)
     );
   }
-  state.totalCount += 1;
-  state.accessKeys.push(accessKey);
+  state.loading = true;
+  try {
+    await fetchAccessKeys();
+  } finally {
+    state.loading = false;
+  }
   await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
 };
 const initAccessKeyClient = async () => {

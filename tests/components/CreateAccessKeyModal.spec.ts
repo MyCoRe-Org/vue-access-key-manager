@@ -8,6 +8,7 @@ import {
   createAccessKey,
   createClientMock,
   createTestI18n,
+  field,
 } from '../helpers';
 
 const i18n = createTestI18n({
@@ -32,10 +33,10 @@ const fillForm = async (
   values: { reference?: string; secret?: string; type?: string } = {}
 ) => {
   if (values.reference !== undefined) {
-    await wrapper.get('#inputReference').setValue(values.reference);
+    await field(wrapper, 'reference').setValue(values.reference);
   }
-  await wrapper.get('#inputSecret').setValue(values.secret ?? 'secret');
-  await wrapper.get('#inputPermission').setValue(values.type ?? 'read');
+  await field(wrapper, 'secret').setValue(values.secret ?? 'secret');
+  await field(wrapper, 'permission').setValue(values.type ?? 'read');
 };
 
 const submit = async (wrapper: ReturnType<typeof mountModal>) => {
@@ -54,8 +55,13 @@ describe('CreateAccessKeyModal', () => {
     );
   });
 
-  it('renders the active checkbox id only once', () => {
-    expect(mountModal().findAll('#inputActive')).toHaveLength(1);
+  it('links every label to its own input', () => {
+    const wrapper = mountModal();
+    const ids = wrapper.findAll('label').map(l => l.attributes('for'));
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) {
+      expect(wrapper.find(`[id="${id}"]`).exists()).toBe(true);
+    }
   });
 
   it('does not get stuck busy without a client', async () => {
@@ -69,25 +75,38 @@ describe('CreateAccessKeyModal', () => {
 
   it('prefills and locks the reference when given', () => {
     const wrapper = mountModal({ reference: 'mir_mods_1' });
-    const input = wrapper.get<HTMLInputElement>('#inputReference');
+    const input = field<HTMLInputElement>(wrapper, 'reference');
     expect(input.element.value).toBe('mir_mods_1');
     expect(input.attributes('disabled')).toBeDefined();
   });
 
+  it('follows a changed reference', async () => {
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    await wrapper.setProps({ reference: 'mir_mods_2' });
+    expect(field<HTMLInputElement>(wrapper, 'reference').element.value).toBe(
+      'mir_mods_2'
+    );
+    wrapper.getComponent(BaseModalStub).vm.$emit('hidden');
+    await flushPromises();
+    expect(field<HTMLInputElement>(wrapper, 'reference').element.value).toBe(
+      'mir_mods_2'
+    );
+  });
+
   it('starts with an active key', () => {
     const wrapper = mountModal();
-    expect(
-      wrapper.get<HTMLInputElement>('input#inputActive').element.checked
-    ).toBe(true);
+    expect(field<HTMLInputElement>(wrapper, 'active').element.checked).toBe(
+      true
+    );
   });
 
   it('marks required fields as invalid and does not submit an empty form', async () => {
     const wrapper = mountModal();
     await submit(wrapper);
     expect(client.createAccessKey).not.toHaveBeenCalled();
-    expect(wrapper.get('#inputReference').classes()).toContain('is-invalid');
-    expect(wrapper.get('#inputSecret').classes()).toContain('is-invalid');
-    expect(wrapper.get('#inputPermission').classes()).toContain('is-invalid');
+    expect(field(wrapper, 'reference').classes()).toContain('is-invalid');
+    expect(field(wrapper, 'secret').classes()).toContain('is-invalid');
+    expect(field(wrapper, 'permission').classes()).toContain('is-invalid');
   });
 
   it('treats whitespace-only values as invalid', async () => {
@@ -127,9 +146,9 @@ describe('CreateAccessKeyModal', () => {
     client.getAccessKey.mockResolvedValue(createAccessKey());
     const wrapper = mountModal();
     await fillForm(wrapper, { reference: 'mir_mods_2' });
-    await wrapper.get('#expirationInput').setValue('2030-06-15');
-    await wrapper.get('#commentTextarea').setValue('for reviewers');
-    await wrapper.get('input#inputActive').setValue(false);
+    await field(wrapper, 'expiration').setValue('2030-06-15');
+    await field(wrapper, 'comment').setValue('for reviewers');
+    await field(wrapper, 'active').setValue(false);
     await submit(wrapper);
 
     expect(client.createAccessKey).toHaveBeenCalledWith({
@@ -144,7 +163,7 @@ describe('CreateAccessKeyModal', () => {
 
   it('offers the given permissions as select options', () => {
     const wrapper = mountModal({ permissions: ['read', 'writedb'] });
-    expect(wrapper.get('#inputPermission').element.tagName).toBe('SELECT');
+    expect(field(wrapper, 'permission').element.tagName).toBe('SELECT');
     expect(wrapper.findAll('option').map(o => o.text())).toEqual([
       'read',
       'writedb',
@@ -210,10 +229,8 @@ describe('CreateAccessKeyModal', () => {
 
     expect(wrapper.find('.alert-danger').exists()).toBe(false);
     expect(wrapper.findAll('.is-invalid')).toHaveLength(0);
-    expect(wrapper.get<HTMLInputElement>('#inputSecret').element.value).toBe(
-      ''
-    );
-    expect(wrapper.get<HTMLInputElement>('#inputReference').element.value).toBe(
+    expect(field<HTMLInputElement>(wrapper, 'secret').element.value).toBe('');
+    expect(field<HTMLInputElement>(wrapper, 'reference').element.value).toBe(
       'mir_mods_1'
     );
   });

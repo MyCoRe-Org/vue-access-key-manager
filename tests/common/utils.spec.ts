@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   convertUnixToIso,
   generateRandomString,
@@ -24,6 +24,18 @@ describe('generateRandomString', () => {
     expect(value.match(/[a-zA-Z]/g)).toHaveLength(7);
     expect(value.match(/[1-9]/g)).toHaveLength(7);
     expect(value.match(/[!@#_%$]/g)).toHaveLength(2);
+  });
+
+  it('draws again instead of skewing towards the first characters', () => {
+    const values = [0xffffffff, 0, 1, 0];
+    const spy = vi
+      .spyOn(crypto, 'getRandomValues')
+      .mockImplementation(<T extends ArrayBufferView | null>(array: T): T => {
+        (array as unknown as Uint32Array)[0] = values.shift()!;
+        return array;
+      });
+    expect(generateRandomString(2)).toBe('@!');
+    expect(spy).toHaveBeenCalledTimes(4);
   });
 
   it('produces different values on consecutive calls', () => {

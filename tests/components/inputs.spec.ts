@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ActiveInput from '@/components/inputs/ActiveInput.vue';
 import CommentInput from '@/components/inputs/CommentInput.vue';
@@ -46,9 +46,21 @@ describe('CommentInput', () => {
 });
 
 describe('ExpirationInput', () => {
-  it('only allows dates from today on', () => {
+  const timeZone = process.env.TZ;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    process.env.TZ = timeZone;
+  });
+
+  it.each([
+    ['America/New_York', '2026-01-15T03:00:00Z', '2026-01-14'],
+    ['Europe/Berlin', '2026-01-14T23:30:00Z', '2026-01-15'],
+  ])('only allows dates from the local today on in %s', (zone, now, today) => {
+    process.env.TZ = zone;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(now));
     const wrapper = mount(ExpirationInput, { global });
-    const today = new Date().toISOString().split('T')[0];
     expect(wrapper.get('input[type="date"]').attributes('min')).toBe(today);
   });
 

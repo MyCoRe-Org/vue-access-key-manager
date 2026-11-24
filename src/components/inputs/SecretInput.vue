@@ -1,5 +1,5 @@
 <template>
-  <label for="inputSecret" class="form-label">
+  <label :for="id" class="form-label">
     {{ t(getI18nKey('label.secret')) }}
   </label>
   <div class="input-group mb-3">
@@ -14,7 +14,7 @@
       </button>
     </span>
     <input
-      id="inputSecret"
+      :id="id"
       v-model="model"
       type="text"
       class="form-control"
@@ -24,12 +24,13 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue';
+import { defineProps, useId } from 'vue';
 import { generateRandomString } from '@/common/utils';
 import { useI18n } from 'vue-i18n';
 import { getI18nKey } from '@/common/utils';
 
 const { t } = useI18n();
+const id = useId();
 
 defineProps<{
   invalid: boolean;

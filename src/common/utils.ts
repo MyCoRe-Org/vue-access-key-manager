@@ -1,5 +1,11 @@
-const randomInt = (max: number): number =>
-  crypto.getRandomValues(new Uint32Array(1))[0] % max;
+const randomInt = (max: number): number => {
+  const limit = Math.floor(0x100000000 / max) * max;
+  const buffer = new Uint32Array(1);
+  do {
+    crypto.getRandomValues(buffer);
+  } while (buffer[0] >= limit);
+  return buffer[0] % max;
+};
 
 const randomChars = (charset: string, count: number): string[] =>
   Array.from({ length: count }, () =>

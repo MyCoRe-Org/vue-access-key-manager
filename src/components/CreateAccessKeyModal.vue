@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, ModelRef, onErrorCaptured, computed } from 'vue';
+import { ref, ModelRef, onErrorCaptured, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getI18nKey, getUnixTimestamp } from '@/common/utils';
 import {
@@ -106,16 +106,22 @@ const visible: ModelRef<boolean> = defineModel<boolean>('visible', {
   default: false,
 });
 
-const defaultForm = {
-  reference: props.reference !== undefined ? props.reference : '',
+const createDefaultForm = (): CreateAccessKey => ({
+  reference: props.reference ?? '',
   isActive: true,
   secret: '',
   type: '',
   comment: undefined,
   expiration: null,
-};
+});
 
-const form = ref<CreateAccessKey>({ ...defaultForm });
+const form = ref<CreateAccessKey>(createDefaultForm());
+watch(
+  () => props.reference,
+  reference => {
+    form.value.reference = reference ?? '';
+  }
+);
 const submitted = ref<boolean>(false);
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isSecretValid = computed(() => form.value.secret.trim().length > 0);
@@ -128,7 +134,7 @@ const handleError = (error: unknown): void => {
     error instanceof Error ? error.message : t(getI18nKey('error.fatal'));
 };
 const resetForm = (): void => {
-  form.value = { ...defaultForm };
+  form.value = createDefaultForm();
   submitted.value = false;
 };
 const resetContent = (): void => {
@@ -163,6 +169,7 @@ const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
   if (!validateFrom() || !props.accessKeyClient) return;
+  errorMessage.value = undefined;
   isBusy.value = true;
   try {
     const accessKey = getAccessKey();

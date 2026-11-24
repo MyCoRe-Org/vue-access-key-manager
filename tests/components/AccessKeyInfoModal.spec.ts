@@ -11,6 +11,8 @@ import {
   createAccessKey,
   createClientMock,
   createTestI18n,
+  field,
+  hasField,
 } from '../helpers';
 
 const i18n = createTestI18n({
@@ -59,20 +61,20 @@ describe('AccessKeyInfoModal', () => {
 
   it('fills the form from the selected access key', async () => {
     const wrapper = await mountModal();
-    const value = (selector: string) =>
-      wrapper.get<HTMLInputElement>(selector).element.value;
-    expect(value('#inputReference')).toBe('mir_mods_1');
-    expect(value('#inputPermission')).toBe('read');
-    expect(value('#expirationInput')).toBe('2030-06-15');
-    expect(value('#commentTextarea')).toBe('initial comment');
-    expect(
-      wrapper.get<HTMLInputElement>('input#inputActive').element.checked
-    ).toBe(true);
+    const value = (name: string) =>
+      field<HTMLInputElement>(wrapper, name).element.value;
+    expect(value('reference')).toBe('mir_mods_1');
+    expect(value('permission')).toBe('read');
+    expect(value('expiration')).toBe('2030-06-15');
+    expect(value('comment')).toBe('initial comment');
+    expect(field<HTMLInputElement>(wrapper, 'active').element.checked).toBe(
+      true
+    );
   });
 
   it('does not render a secret input', async () => {
     const wrapper = await mountModal();
-    expect(wrapper.find('#inputSecret').exists()).toBe(false);
+    expect(hasField(wrapper, 'secret')).toBe(false);
   });
 
   it('updates the form when another access key is selected', async () => {
@@ -85,20 +87,64 @@ describe('AccessKeyInfoModal', () => {
         expiration: null,
       }),
     });
-    expect(wrapper.get<HTMLInputElement>('#inputReference').element.value).toBe(
+    expect(field<HTMLInputElement>(wrapper, 'reference').element.value).toBe(
       'mir_mods_2'
     );
-    expect(
-      wrapper.get<HTMLInputElement>('#expirationInput').element.value
-    ).toBe('');
-    expect(
-      wrapper.get<HTMLInputElement>('input#inputActive').element.checked
-    ).toBe(false);
+    expect(field<HTMLInputElement>(wrapper, 'expiration').element.value).toBe(
+      ''
+    );
+    expect(field<HTMLInputElement>(wrapper, 'active').element.checked).toBe(
+      false
+    );
+  });
+
+  it('discards unsaved changes when reopened with the same key', async () => {
+    const wrapper = await mountModal();
+    await field(wrapper, 'comment').setValue('discarded');
+    await wrapper.setProps({ visible: false });
+    await wrapper.setProps({ visible: true });
+    expect(field<HTMLTextAreaElement>(wrapper, 'comment').element.value).toBe(
+      'initial comment'
+    );
+  });
+
+  it('clears the error and validation state when reopened', async () => {
+    client.patchAccessKey.mockRejectedValue(new Error('Forbidden'));
+    const wrapper = await mountModal();
+    await field(wrapper, 'reference').setValue(' ');
+    await submit(wrapper);
+    expect(field(wrapper, 'reference').classes()).toContain('is-invalid');
+    await field(wrapper, 'reference').setValue('mir_mods_1');
+    await submit(wrapper);
+    expect(wrapper.find('.alert-danger').exists()).toBe(true);
+
+    await wrapper.setProps({ visible: false });
+    await wrapper.setProps({ visible: true });
+    expect(wrapper.find('.alert-danger').exists()).toBe(false);
+    expect(wrapper.findAll('.is-invalid')).toHaveLength(0);
+  });
+
+  it('clears the previous error on a new submit', async () => {
+    client.patchAccessKey.mockRejectedValueOnce(new Error('Forbidden'));
+    client.getAccessKey.mockResolvedValue(accessKey);
+    let resolvePatch: () => void = () => undefined;
+    const wrapper = await mountModal();
+    await submit(wrapper);
+    expect(wrapper.find('.alert-danger').exists()).toBe(true);
+    client.patchAccessKey.mockReturnValueOnce(
+      new Promise<void>(resolve => {
+        resolvePatch = resolve;
+      })
+    );
+    await wrapper.get('form').trigger('submit');
+    expect(wrapper.find('.alert-danger').exists()).toBe(false);
+    resolvePatch();
+    await flushPromises();
   });
 
   it('locks the reference when a reference is given', async () => {
     const wrapper = await mountModal({ reference: 'mir_mods_1' });
-    expect(wrapper.get('#inputReference').attributes('disabled')).toBeDefined();
+    expect(field(wrapper, 'reference').attributes('disabled')).toBeDefined();
   });
 
   it('patches only the changed fields and emits the reloaded key', async () => {
@@ -106,8 +152,8 @@ describe('AccessKeyInfoModal', () => {
     client.patchAccessKey.mockResolvedValue(undefined);
     client.getAccessKey.mockResolvedValue(updated);
     const wrapper = await mountModal();
-    await wrapper.get('#commentTextarea').setValue('new comment');
-    await wrapper.get('input#inputActive').setValue(false);
+    await field(wrapper, 'comment').setValue('new comment');
+    await field(wrapper, 'active').setValue(false);
     await submit(wrapper);
 
     expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {
@@ -129,9 +175,9 @@ describe('AccessKeyInfoModal', () => {
   it('patches reference, type and expiration', async () => {
     client.getAccessKey.mockResolvedValue(accessKey);
     const wrapper = await mountModal();
-    await wrapper.get('#inputReference').setValue('mir_mods_9');
-    await wrapper.get('#inputPermission').setValue('writedb');
-    await wrapper.get('#expirationInput').setValue('2031-01-01');
+    await field(wrapper, 'reference').setValue('mir_mods_9');
+    await field(wrapper, 'permission').setValue('writedb');
+    await field(wrapper, 'expiration').setValue('2031-01-01');
     await submit(wrapper);
     expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {
       reference: 'mir_mods_9',
@@ -143,7 +189,7 @@ describe('AccessKeyInfoModal', () => {
   it('sends expiration null when the expiration is removed', async () => {
     client.getAccessKey.mockResolvedValue(accessKey);
     const wrapper = await mountModal();
-    await wrapper.get('#expirationInput').setValue('');
+    await field(wrapper, 'expiration').setValue('');
     await submit(wrapper);
     expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {
       expiration: null,
@@ -152,12 +198,12 @@ describe('AccessKeyInfoModal', () => {
 
   it('does not submit with an empty reference or permission', async () => {
     const wrapper = await mountModal();
-    await wrapper.get('#inputReference').setValue(' ');
-    await wrapper.get('#inputPermission').setValue('');
+    await field(wrapper, 'reference').setValue(' ');
+    await field(wrapper, 'permission').setValue('');
     await submit(wrapper);
     expect(client.patchAccessKey).not.toHaveBeenCalled();
-    expect(wrapper.get('#inputReference').classes()).toContain('is-invalid');
-    expect(wrapper.get('#inputPermission').classes()).toContain('is-invalid');
+    expect(field(wrapper, 'reference').classes()).toContain('is-invalid');
+    expect(field(wrapper, 'permission').classes()).toContain('is-invalid');
   });
 
   it('shows the error message and stays open when the update fails', async () => {

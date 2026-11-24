@@ -1,7 +1,9 @@
 import { vi } from 'vitest';
 import { defineComponent, h } from 'vue';
+import type { VueWrapper } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 import type { AccessKey } from '@jsr/mycore__js-common/access-key';
+import { getI18nKey } from '@/common/utils';
 
 export const createTestI18n = (messages: Record<string, string> = {}) =>
   createI18n({
@@ -50,3 +52,19 @@ export const createClientMock = () => ({
   patchAccessKey: vi.fn(),
   deleteAccessKey: vi.fn(),
 });
+
+export const field = <T extends Element = HTMLInputElement>(
+  wrapper: VueWrapper,
+  name: string
+) => {
+  const label = wrapper
+    .findAll('label')
+    .find(l => l.text() === getI18nKey(`label.${name}`));
+  if (!label) {
+    throw new Error(`no label for ${name}`);
+  }
+  return wrapper.get<T>(`[id="${label.attributes('for')}"]`);
+};
+
+export const hasField = (wrapper: VueWrapper, name: string): boolean =>
+  wrapper.findAll('label').some(l => l.text() === getI18nKey(`label.${name}`));

@@ -242,8 +242,12 @@ describe('AccessKeyManager', () => {
   });
 
   describe('deleting', () => {
-    it('deletes the access key after confirmation', async () => {
+    it('deletes the access key after confirmation and reloads the page', async () => {
       const wrapper = await mountManager();
+      mocks.client.getAccessKeys.mockResolvedValue({
+        accessKeys: [keys(2)[1]],
+        totalCount: 1,
+      });
       wrapper
         .getComponent(AccessKeyTable)
         .vm.$emit('remove-access-key', keys(2)[0]);
@@ -251,12 +255,58 @@ describe('AccessKeyManager', () => {
 
       expect(mocks.confirm).toHaveBeenCalledWith('Remove', 'Remove key-1?');
       expect(mocks.client.deleteAccessKey).toHaveBeenCalledWith('key-1');
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledTimes(2);
       expect(
         wrapper
           .getComponent(AccessKeyTable)
           .props('accessKeys')
           .map((k: { id: string }) => k.id)
       ).toEqual(['key-2']);
+    });
+
+    it('pulls the next key onto a full page after deleting', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(2),
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ pageSize: 2 });
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(2, 1),
+        totalCount: 2,
+      });
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1)[0]);
+      await flushPromises();
+      expect(
+        wrapper
+          .getComponent(AccessKeyTable)
+          .props('accessKeys')
+          .map((k: { id: string }) => k.id)
+      ).toEqual(['key-2', 'key-3']);
+    });
+
+    it('goes back a page after deleting its last key', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: [keys(1, 2)[0]],
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ currentPage: 2, pageSize: 2 });
+      mocks.client.getAccessKeys
+        .mockResolvedValueOnce({ accessKeys: [], totalCount: 2 })
+        .mockResolvedValueOnce({ accessKeys: keys(2), totalCount: 2 });
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1, 2)[0]);
+      await flushPromises();
+
+      expect(mocks.client.getAccessKeys).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 0, limit: 2 })
+      );
+      expect(wrapper.emitted('page-change')).toEqual([[1]]);
+      expect(
+        wrapper.getComponent(AccessKeyTable).props('accessKeys')
+      ).toHaveLength(2);
     });
 
     it('keeps the access key when the confirmation is cancelled', async () => {
@@ -327,6 +377,15 @@ describe('AccessKeyManager', () => {
       );
     });
 
+    it('uses unique ids across both modals', async () => {
+      const wrapper = await mountManager();
+      const ids = wrapper.findAll('[id]').map(el => el.attributes('id'));
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const label of wrapper.findAll('label[for]')) {
+        expect(ids).toContain(label.attributes('for'));
+      }
+    });
+
     it('passes client, reference and permissions to the modals', async () => {
       const wrapper = await mountManager({
         reference: 'mir_mods_1',
@@ -342,9 +401,13 @@ describe('AccessKeyManager', () => {
       }
     });
 
-    it('adds the created key and shows the secret', async () => {
+    it('reloads the page and shows the secret after creating', async () => {
       const wrapper = await mountManager();
       const created = createAccessKey({ id: 'key-new', type: 'writedb' });
+      mocks.client.getAccessKeys.mockResolvedValue({
+        accessKeys: [...keys(2), created],
+        totalCount: 3,
+      });
       wrapper
         .getComponent(CreateAccessKeyModal)
         .vm.$emit('add-access-key', 'my-secret', created);

@@ -117,18 +117,22 @@ const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
 
 watch(
-  () => props.accessKey,
-  (accessKey?: AccessKey) => {
-    if (accessKey) {
-      form.value.type = accessKey.type;
-      form.value.reference = accessKey.reference;
-      form.value.isActive = accessKey.isActive;
-      form.value.expiration = accessKey.expiration
+  [() => props.accessKey, visible],
+  ([accessKey, isVisible]) => {
+    if (!accessKey || !isVisible) return;
+    form.value = {
+      type: accessKey.type,
+      reference: accessKey.reference,
+      isActive: accessKey.isActive,
+      expiration: accessKey.expiration
         ? convertUnixToIso(accessKey.expiration)
-        : null;
-      form.value.comment = accessKey.comment;
-    }
-  }
+        : null,
+      comment: accessKey.comment,
+    };
+    errorMessage.value = undefined;
+    submitted.value = false;
+  },
+  { immediate: true }
 );
 
 const handleError = (error: unknown): void => {
@@ -166,6 +170,7 @@ const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
   if (!validateFrom() || !props.accessKeyClient || !props.accessKey) return;
+  errorMessage.value = undefined;
   isBusy.value = true;
   try {
     await props.accessKeyClient.patchAccessKey(
