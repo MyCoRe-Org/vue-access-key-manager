@@ -176,7 +176,7 @@ const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
     secret:
       accessKey.id.length > 30
         ? `${accessKey.id.slice(0, 27)}...`
-        : accessKey.secret,
+        : accessKey.id,
   });
   if (await confirm(title, message)) {
     state.loading = true;

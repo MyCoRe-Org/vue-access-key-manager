@@ -5,6 +5,9 @@ export const fetchJwt = async (
   reference?: string,
   isSessionEnabled?: boolean
 ): Promise<string> => {
+  if (!reference) {
+    return await mcrFetchJwt(baseUrl);
+  }
   const attributeName = `acckey_${reference}`;
   return await mcrFetchJwt(baseUrl, {
     userAttributes: [attributeName],

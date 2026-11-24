@@ -165,30 +165,22 @@ const validateFrom = (): boolean => {
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
-  if (!validateFrom()) return;
+  if (!validateFrom() || !props.accessKeyClient || !props.accessKey) return;
   isBusy.value = true;
-  if (props.accessKeyClient) {
-    isBusy.value = true;
-    if (props.accessKey) {
-      const partialUpdatedAccessKey = buildAccessKeyPayload();
-      try {
-        await props.accessKeyClient.patchAccessKey(
-          props.accessKey.id,
-          partialUpdatedAccessKey
-        );
-        const updatedAccessKey = await props.accessKeyClient.getAccessKey(
-          props.accessKey.id
-        );
-        emit('update-access-key', updatedAccessKey);
-        visible.value = false;
-      } catch (error) {
-        handleError(error);
-      } finally {
-        isBusy.value = false;
-      }
-    } else {
-      isBusy.value = false;
-    }
+  try {
+    await props.accessKeyClient.patchAccessKey(
+      props.accessKey.id,
+      buildAccessKeyPayload()
+    );
+    const updatedAccessKey = await props.accessKeyClient.getAccessKey(
+      props.accessKey.id
+    );
+    emit('update-access-key', updatedAccessKey);
+    visible.value = false;
+  } catch (error) {
+    handleError(error);
+  } finally {
+    isBusy.value = false;
   }
 };
 onErrorCaptured((err): boolean => {

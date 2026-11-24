@@ -12,6 +12,7 @@ import {
 
 const i18n = createTestI18n({
   [getI18nKey('error.fatal')]: 'Fatal error',
+  [getI18nKey('title.createAccessKey')]: 'Create access key',
 });
 
 let client: ReturnType<typeof createClientMock>;
@@ -45,6 +46,25 @@ const submit = async (wrapper: ReturnType<typeof mountModal>) => {
 describe('CreateAccessKeyModal', () => {
   beforeEach(() => {
     client = createClientMock();
+  });
+
+  it('uses the create title', () => {
+    expect(mountModal().getComponent(BaseModalStub).props('title')).toBe(
+      'Create access key'
+    );
+  });
+
+  it('renders the active checkbox id only once', () => {
+    expect(mountModal().findAll('#inputActive')).toHaveLength(1);
+  });
+
+  it('does not get stuck busy without a client', async () => {
+    const wrapper = mountModal({ accessKeyClient: undefined });
+    await fillForm(wrapper, { reference: 'mir_mods_1' });
+    await submit(wrapper);
+    expect(
+      wrapper.get('button[type="submit"]').attributes('disabled')
+    ).toBeUndefined();
   });
 
   it('prefills and locks the reference when given', () => {

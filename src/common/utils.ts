@@ -1,27 +1,26 @@
+const randomInt = (max: number): number =>
+  crypto.getRandomValues(new Uint32Array(1))[0] % max;
+
+const randomChars = (charset: string, count: number): string[] =>
+  Array.from({ length: count }, () =>
+    charset.charAt(randomInt(charset.length))
+  );
+
 export const generateRandomString = (length: number): string => {
   const keylistalpha = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const keylistint = '123456789';
   const keylistspec = '!@#_%$';
-  let temp = '';
-  let len = length / 2;
-  len -= 1;
-  const lenspec = length - len - len;
-  for (let i = 0; i < len; i += 1) {
-    temp += keylistalpha.charAt(
-      Math.floor(Math.random() * keylistalpha.length)
-    );
+  const len = Math.max(0, Math.floor(length / 2) - 1);
+  const chars = [
+    ...randomChars(keylistalpha, len),
+    ...randomChars(keylistspec, length - 2 * len),
+    ...randomChars(keylistint, len),
+  ];
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
   }
-  for (let i = 0; i < lenspec; i += 1) {
-    temp += keylistspec.charAt(Math.floor(Math.random() * keylistspec.length));
-  }
-  for (let i = 0; i < len; i += 1) {
-    temp += keylistint.charAt(Math.floor(Math.random() * keylistint.length));
-  }
-  temp = temp
-    .split('')
-    .sort(() => 0.5 - Math.random())
-    .join('');
-  return temp;
+  return chars.join('');
 };
 
 export const getUnixTimestamp = (date: number | string): number =>

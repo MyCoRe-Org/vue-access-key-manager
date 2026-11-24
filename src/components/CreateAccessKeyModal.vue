@@ -3,7 +3,7 @@
     id="createAccessKeyModal"
     ref="createAccessKeyModalRef"
     v-model:visible="visible"
-    :title="t(getI18nKey('title.viewAccessKey'))"
+    :title="t(getI18nKey('title.createAccessKey'))"
     :busy="isBusy"
     @hidden="resetContent"
   >
@@ -48,7 +48,7 @@
         <ExpirationInput v-model="form.expiration" />
       </div>
       <div class="col-12">
-        <ActiveInput id="inputActive" v-model="form.isActive" />
+        <ActiveInput v-model="form.isActive" />
       </div>
       <div class="col-12">
         <CommentInput v-model="form.comment" />
@@ -162,23 +162,20 @@ const validateFrom = (): boolean => {
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
-  if (!validateFrom()) return;
+  if (!validateFrom() || !props.accessKeyClient) return;
   isBusy.value = true;
-  if (props.accessKeyClient) {
-    try {
-      const accessKey = getAccessKey();
-      const accessKeyId =
-        await props.accessKeyClient.createAccessKey(accessKey);
-      const createdAccessKey =
-        await props.accessKeyClient.getAccessKey(accessKeyId);
-      emit('add-access-key', form.value.secret, createdAccessKey);
-      submitted.value = false;
-      visible.value = false;
-    } catch (error) {
-      handleError(error);
-    } finally {
-      isBusy.value = false;
-    }
+  try {
+    const accessKey = getAccessKey();
+    const accessKeyId = await props.accessKeyClient.createAccessKey(accessKey);
+    const createdAccessKey =
+      await props.accessKeyClient.getAccessKey(accessKeyId);
+    emit('add-access-key', form.value.secret, createdAccessKey);
+    submitted.value = false;
+    visible.value = false;
+  } catch (error) {
+    handleError(error);
+  } finally {
+    isBusy.value = false;
   }
 };
 onErrorCaptured((err): boolean => {

@@ -31,6 +31,11 @@ describe('fetchJwt', () => {
     });
   });
 
+  it('requests no access key attributes without reference', async () => {
+    await fetchJwt(baseUrl, undefined, true);
+    expect(mcrFetchJwt).toHaveBeenCalledWith(baseUrl);
+  });
+
   it('propagates errors', async () => {
     vi.mocked(mcrFetchJwt).mockRejectedValue(new Error('unauthorized'));
     await expect(fetchJwt(baseUrl, 'ref')).rejects.toThrow('unauthorized');

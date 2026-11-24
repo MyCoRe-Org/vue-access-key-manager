@@ -172,6 +172,14 @@ describe('AccessKeyInfoModal', () => {
     ).toBeUndefined();
   });
 
+  it('does not get stuck busy without a client', async () => {
+    const wrapper = await mountModal({ accessKeyClient: undefined });
+    await submit(wrapper);
+    expect(
+      wrapper.get('button[type="submit"]').attributes('disabled')
+    ).toBeUndefined();
+  });
+
   it('shows a generic error message for non-Error rejections', async () => {
     client.patchAccessKey.mockRejectedValue('boom');
     const wrapper = await mountModal();

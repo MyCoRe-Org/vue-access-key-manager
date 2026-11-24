@@ -249,7 +249,7 @@ describe('AccessKeyManager', () => {
         .vm.$emit('remove-access-key', keys(2)[0]);
       await flushPromises();
 
-      expect(mocks.confirm).toHaveBeenCalledWith('Remove', expect.any(String));
+      expect(mocks.confirm).toHaveBeenCalledWith('Remove', 'Remove key-1?');
       expect(mocks.client.deleteAccessKey).toHaveBeenCalledWith('key-1');
       expect(
         wrapper

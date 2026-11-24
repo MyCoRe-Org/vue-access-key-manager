@@ -9,7 +9,7 @@ import {
 } from '@/common/utils';
 
 describe('generateRandomString', () => {
-  it.each([8, 16, 32])('returns a string of length %i', length => {
+  it.each([7, 8, 15, 16, 32])('returns a string of length %i', length => {
     expect(generateRandomString(length)).toHaveLength(length);
   });
 
