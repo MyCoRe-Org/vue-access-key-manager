@@ -27,7 +27,7 @@
     "@jsr/mycore__js-common": "^0.0.8",
     "@mycore-org/vue-components": "^0.1.8",
     "@popperjs/core": "^2.11.8",
-    "@types/node": "^22.19.17",
+    "@types/node": "^24.19.3",
     "@vitejs/plugin-vue": "^6.0.11",
     "@vue/test-utils": "^2.6.0",
     "@vue/tsconfig": "^0.9.1",
