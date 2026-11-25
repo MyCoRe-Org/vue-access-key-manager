@@ -6,6 +6,14 @@
   "module": "./dist/vue-access-key-manager.js",
   "style": "./dist/vue-access-key-manager.css",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/vue-access-key-manager.js"
+    },
+    "./dist/vue-access-key-manager.css": "./dist/vue-access-key-manager.css",
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "src"
