@@ -69,16 +69,14 @@ const emit = defineEmits<{
   (event: 'view-access-key', index: number): void;
 }>();
 
-const columnLabels = computed(
-  (): Record<string, string> => ({
-    id: t(getI18nKey('label.id')),
-    reference: t(getI18nKey('label.reference')),
-    permission: t(getI18nKey('label.permission')),
-    active: t(getI18nKey('label.active')),
-    expiration: t(getI18nKey('label.expiration')),
-    actions: t(getI18nKey('label.actions')),
-  })
-);
+const columnLabels = computed((): Record<string, string> => ({
+  id: t(getI18nKey('label.id')),
+  reference: t(getI18nKey('label.reference')),
+  permission: t(getI18nKey('label.permission')),
+  active: t(getI18nKey('label.active')),
+  expiration: t(getI18nKey('label.expiration')),
+  actions: t(getI18nKey('label.actions')),
+}));
 
 const removeAccessKey = async (accessKey: AccessKey): Promise<void> => {
   emit('remove-access-key', accessKey);
