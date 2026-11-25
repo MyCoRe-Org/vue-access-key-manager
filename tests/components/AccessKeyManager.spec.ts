@@ -225,6 +225,48 @@ describe('AccessKeyManager', () => {
       expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
     });
 
+    it('rolls back to the shown page when a page fails to load', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 2,
+      });
+      const wrapper = await mountManager({ pageSize: 1 });
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.get('.page-item.active button').text()).toBe('1');
+      expect(wrapper.emitted('page-change')).toBeUndefined();
+    });
+
+    it('announces only the latest of quickly changed pages', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ pageSize: 1, routerEnabled: true });
+      const pending: ((value: unknown) => void)[] = [];
+      mocks.client.getAccessKeys.mockImplementation(
+        () => new Promise(resolve => pending.push(resolve))
+      );
+      const overlay = () =>
+        wrapper.get<HTMLElement>('#loading-overlay').element.style.visibility;
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      await wrapper.get('button[aria-label="3"]').trigger('click');
+      pending[1]({ accessKeys: [keys(1, 2)[0]], totalCount: 3 });
+      await flushPromises();
+      expect(overlay()).toBe('visible');
+      pending[0]({ accessKeys: [keys(1, 1)[0]], totalCount: 3 });
+      await flushPromises();
+
+      expect(overlay()).toBe('hidden');
+      expect(wrapper.emitted('page-change')).toEqual([[3]]);
+      expect(mocks.router.push).toHaveBeenCalledTimes(1);
+      expect(mocks.router.push).toHaveBeenCalledWith({ query: { page: '3' } });
+      expect(
+        wrapper.getComponent(AccessKeyTable).props('accessKeys')[0].id
+      ).toBe('key-3');
+    });
+
     it('ignores the response of an older request', async () => {
       mocks.client.getAccessKeys.mockResolvedValueOnce({
         accessKeys: keys(1),
@@ -366,20 +408,22 @@ describe('AccessKeyManager', () => {
       expect(wrapper.emitted('page-change')).toEqual([[3]]);
     });
 
-    it('goes back a page after deleting its last key', async () => {
+    it('goes back a page with one request after deleting its last key', async () => {
       mocks.client.getAccessKeys.mockResolvedValueOnce({
         accessKeys: [keys(1, 2)[0]],
         totalCount: 3,
       });
       const wrapper = await mountManager({ currentPage: 2, pageSize: 2 });
-      mocks.client.getAccessKeys
-        .mockResolvedValueOnce({ accessKeys: [], totalCount: 2 })
-        .mockResolvedValueOnce({ accessKeys: keys(2), totalCount: 2 });
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(2),
+        totalCount: 2,
+      });
       wrapper
         .getComponent(AccessKeyTable)
         .vm.$emit('remove-access-key', keys(1, 2)[0]);
       await flushPromises();
 
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledTimes(2);
       expect(mocks.client.getAccessKeys).toHaveBeenLastCalledWith(
         expect.objectContaining({ offset: 0, limit: 2 })
       );

@@ -50,7 +50,11 @@ describe('ExpirationInput', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    process.env.TZ = timeZone;
+    if (timeZone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = timeZone;
+    }
   });
 
   it.each([
@@ -67,6 +71,23 @@ describe('ExpirationInput', () => {
       expect(wrapper.get('input[type="date"]').attributes('min')).toBe(min);
     }
   );
+
+  it.each(['Tab', 'Backspace', 'Delete', 'Escape', 'Enter'])(
+    'lets %s through',
+    key => {
+      const input = mount(ExpirationInput, { global }).get('input');
+      const event = new KeyboardEvent('keydown', { key, cancelable: true });
+      input.element.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+  );
+
+  it.each(['1', 'a', 'ArrowUp', 'ArrowDown'])('blocks typing %s', key => {
+    const input = mount(ExpirationInput, { global }).get('input');
+    const event = new KeyboardEvent('keydown', { key, cancelable: true });
+    input.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
 
   it('updates the earliest date when focused after midnight', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });

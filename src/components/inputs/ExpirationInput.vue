@@ -10,7 +10,7 @@
       type="date"
       class="form-control"
       @focus="updateMin"
-      @keydown.prevent
+      @keydown="blockTyping"
     />
   </div>
 </template>
@@ -31,5 +31,11 @@ const tomorrowUtc = (): string => {
 const min = ref(tomorrowUtc());
 const updateMin = (): void => {
   min.value = tomorrowUtc();
+};
+const ALLOWED_KEYS = ['Tab', 'Backspace', 'Delete', 'Escape', 'Enter'];
+const blockTyping = (event: KeyboardEvent): void => {
+  if (!ALLOWED_KEYS.includes(event.key)) {
+    event.preventDefault();
+  }
 };
 </script>

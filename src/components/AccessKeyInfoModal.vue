@@ -172,13 +172,15 @@ const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
   if (!validateFrom() || !props.accessKeyClient || !props.accessKey) return;
+  const payload = buildAccessKeyPayload();
+  if (Object.keys(payload).length === 0) {
+    visible.value = false;
+    return;
+  }
   errorMessage.value = undefined;
   isBusy.value = true;
   try {
-    await props.accessKeyClient.patchAccessKey(
-      props.accessKey.id,
-      buildAccessKeyPayload()
-    );
+    await props.accessKeyClient.patchAccessKey(props.accessKey.id, payload);
     const updatedAccessKey = await props.accessKeyClient.getAccessKey(
       props.accessKey.id
     );

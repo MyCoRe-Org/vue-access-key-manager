@@ -114,7 +114,7 @@ describe('AccessKeyInfoModal', () => {
     await field(wrapper, 'reference').setValue(' ');
     await submit(wrapper);
     expect(field(wrapper, 'reference').classes()).toContain('is-invalid');
-    await field(wrapper, 'reference').setValue('mir_mods_1');
+    await field(wrapper, 'reference').setValue('mir_mods_2');
     await submit(wrapper);
     expect(wrapper.find('.alert-danger').exists()).toBe(true);
 
@@ -129,6 +129,7 @@ describe('AccessKeyInfoModal', () => {
     client.getAccessKey.mockResolvedValue(accessKey);
     let resolvePatch: () => void = () => undefined;
     const wrapper = await mountModal();
+    await field(wrapper, 'comment').setValue('changed');
     await submit(wrapper);
     expect(wrapper.find('.alert-danger').exists()).toBe(true);
     client.patchAccessKey.mockReturnValueOnce(
@@ -165,11 +166,12 @@ describe('AccessKeyInfoModal', () => {
     expect(wrapper.emitted('update:visible')).toEqual([[false]]);
   });
 
-  it('sends an empty patch when nothing changed', async () => {
-    client.getAccessKey.mockResolvedValue(accessKey);
+  it('closes without a request when nothing changed', async () => {
     const wrapper = await mountModal();
     await submit(wrapper);
-    expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {});
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
+    expect(client.getAccessKey).not.toHaveBeenCalled();
+    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
   });
 
   it.each([
@@ -179,22 +181,21 @@ describe('AccessKeyInfoModal', () => {
     ],
     ['no expiration field', { expiration: undefined }],
     ['no comment field', { comment: undefined }],
-  ])('sends an empty patch for a key with %s', async (_, overrides) => {
-    const selected = createAccessKey({ ...overrides });
-    client.getAccessKey.mockResolvedValue(selected);
-    const wrapper = await mountModal({}, selected);
+  ])('sends nothing for an unchanged key with %s', async (_, overrides) => {
+    const wrapper = await mountModal({}, createAccessKey({ ...overrides }));
     await submit(wrapper);
-    expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {});
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
   });
 
   it('treats a cleared comment as unchanged when there was none', async () => {
-    const selected = createAccessKey({ comment: undefined });
-    client.getAccessKey.mockResolvedValue(selected);
-    const wrapper = await mountModal({}, selected);
+    const wrapper = await mountModal(
+      {},
+      createAccessKey({ comment: undefined })
+    );
     await field(wrapper, 'comment').setValue('typed');
     await field(wrapper, 'comment').setValue('');
     await submit(wrapper);
-    expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {});
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
   });
 
   it('patches reference, type and expiration', async () => {
@@ -234,6 +235,7 @@ describe('AccessKeyInfoModal', () => {
   it('shows the error message and stays open when the update fails', async () => {
     client.patchAccessKey.mockRejectedValue(new Error('Forbidden'));
     const wrapper = await mountModal();
+    await field(wrapper, 'comment').setValue('changed');
     await submit(wrapper);
     expect(wrapper.get('.alert-danger').text()).toBe('Forbidden');
     expect(wrapper.emitted('update-access-key')).toBeUndefined();
@@ -254,6 +256,7 @@ describe('AccessKeyInfoModal', () => {
   it('shows a generic error message for non-Error rejections', async () => {
     client.patchAccessKey.mockRejectedValue('boom');
     const wrapper = await mountModal();
+    await field(wrapper, 'comment').setValue('changed');
     await submit(wrapper);
     expect(wrapper.get('.alert-danger').text()).toBe('Fatal error');
   });
