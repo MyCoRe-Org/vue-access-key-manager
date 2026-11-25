@@ -34,7 +34,13 @@
         />
       </div>
       <div class="col-md-6">
-        <ExpirationInput v-model="form.expiration" />
+        <ExpirationInput
+          ref="expirationInput"
+          :key="expirationInputKey"
+          v-model="form.expiration"
+          v-model:incomplete="isExpirationIncomplete"
+          :invalid="submitted && !isExpirationValid"
+        />
       </div>
       <div class="col-12">
         <ActiveInput v-model="form.isActive" />
@@ -63,7 +69,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured, watch, ModelRef, computed } from 'vue';
+import {
+  ref,
+  onErrorCaptured,
+  watch,
+  ModelRef,
+  computed,
+  useTemplateRef,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { BaseModal } from '@mycore-org/vue-components';
 import {
@@ -71,7 +84,13 @@ import {
   PartialUpdateAccessKey,
   AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
-import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
+import {
+  getI18nKey,
+  convertUnixToIso,
+  getUnixTimestamp,
+  getMinExpirationDate,
+  isExpirationDateAllowed,
+} from '@/common/utils';
 import PermissionInput from './inputs/PermissionInput.vue';
 import ReferenceInput from './inputs/ReferenceInput.vue';
 import ActiveInput from './inputs/ActiveInput.vue';
@@ -106,6 +125,7 @@ const emit = defineEmits<{
 const errorMessage = ref<string | undefined>(undefined);
 const isBusy = ref<boolean>(false);
 const submitted = ref<boolean>(false);
+const initialForm = ref<FormData>();
 const form = ref<FormData>({
   reference: '',
   type: '',
@@ -115,20 +135,38 @@ const form = ref<FormData>({
 });
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
+const isExpirationIncomplete = ref(false);
+const expirationInput =
+  useTemplateRef<InstanceType<typeof ExpirationInput>>('expirationInput');
+const expirationInputKey = ref(0);
+const minExpirationDate = ref(getMinExpirationDate());
+const isExpirationValid = computed(() =>
+  form.value.expiration
+    ? form.value.expiration === initialForm.value?.expiration ||
+      isExpirationDateAllowed(form.value.expiration, minExpirationDate.value)
+    : !isExpirationIncomplete.value
+);
 
 watch(
-  () => props.accessKey,
-  (accessKey?: AccessKey) => {
-    if (accessKey) {
-      form.value.type = accessKey.type;
-      form.value.reference = accessKey.reference;
-      form.value.isActive = accessKey.isActive;
-      form.value.expiration = accessKey.expiration
+  [() => props.accessKey, visible],
+  ([accessKey, isVisible]) => {
+    if (!accessKey || !isVisible) return;
+    initialForm.value = {
+      type: accessKey.type,
+      reference: accessKey.reference,
+      isActive: accessKey.isActive,
+      expiration: accessKey.expiration
         ? convertUnixToIso(accessKey.expiration)
-        : null;
-      form.value.comment = accessKey.comment;
-    }
-  }
+        : null,
+      comment: accessKey.comment,
+    };
+    form.value = { ...initialForm.value };
+    isExpirationIncomplete.value = false;
+    expirationInputKey.value += 1;
+    errorMessage.value = undefined;
+    submitted.value = false;
+  },
+  { immediate: true }
 );
 
 const handleError = (error: unknown): void => {
@@ -137,58 +175,66 @@ const handleError = (error: unknown): void => {
 };
 const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
   const updatedAccessKey: PartialUpdateAccessKey = {};
-  if (form.value.reference !== props.accessKey?.reference) {
+  const initial = initialForm.value;
+  if (form.value.reference !== initial?.reference) {
     updatedAccessKey.reference = form.value.reference;
   }
-  if (form.value.comment !== props.accessKey?.comment) {
+  if ((form.value.comment ?? '') !== (initial?.comment ?? '')) {
     updatedAccessKey.comment = form.value.comment;
   }
-  if (form.value.type !== props.accessKey?.type) {
+  if (form.value.type !== initial?.type) {
     updatedAccessKey.type = form.value.type;
   }
-  const expiration = form.value.expiration
-    ? getUnixTimestamp(form.value.expiration)
-    : null;
-  if (expiration !== props.accessKey?.expiration) {
-    updatedAccessKey.expiration = expiration;
+  if ((form.value.expiration || null) !== initial?.expiration) {
+    updatedAccessKey.expiration = form.value.expiration
+      ? getUnixTimestamp(form.value.expiration)
+      : null;
   }
-  if (form.value.isActive !== props.accessKey?.isActive) {
+  if (form.value.isActive !== initial?.isActive) {
     updatedAccessKey.isActive = form.value.isActive;
   }
   return updatedAccessKey;
 };
 
 const validateFrom = (): boolean => {
-  return isReferenceValid.value && isPermissionValid.value;
+  return (
+    isReferenceValid.value && isPermissionValid.value && isExpirationValid.value
+  );
 };
 
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
+  minExpirationDate.value = getMinExpirationDate();
+  expirationInput.value?.checkInput();
   if (!validateFrom()) return;
+  if (!props.accessKeyClient || !props.accessKey) {
+    errorMessage.value = t(getI18nKey('error.fatal'));
+    return;
+  }
+  const payload = buildAccessKeyPayload();
+  if (Object.keys(payload).length === 0) {
+    visible.value = false;
+    return;
+  }
+  errorMessage.value = undefined;
   isBusy.value = true;
-  if (props.accessKeyClient) {
-    isBusy.value = true;
-    if (props.accessKey) {
-      const partialUpdatedAccessKey = buildAccessKeyPayload();
-      try {
-        await props.accessKeyClient.patchAccessKey(
-          props.accessKey.id,
-          partialUpdatedAccessKey
-        );
-        const updatedAccessKey = await props.accessKeyClient.getAccessKey(
-          props.accessKey.id
-        );
-        emit('update-access-key', updatedAccessKey);
-        visible.value = false;
-      } catch (error) {
-        handleError(error);
-      } finally {
-        isBusy.value = false;
-      }
-    } else {
-      isBusy.value = false;
+  try {
+    await props.accessKeyClient.patchAccessKey(props.accessKey.id, payload);
+    let updatedAccessKey: AccessKey;
+    try {
+      updatedAccessKey = await props.accessKeyClient.getAccessKey(
+        props.accessKey.id
+      );
+    } catch {
+      updatedAccessKey = { ...props.accessKey, ...payload };
     }
+    emit('update-access-key', updatedAccessKey);
+    visible.value = false;
+  } catch (error) {
+    handleError(error);
+  } finally {
+    isBusy.value = false;
   }
 };
 onErrorCaptured((err): boolean => {

@@ -14,3 +14,4 @@ jobs:
     uses: MyCoRe-Org/github-workflows/.github/workflows/node-build.yml@v1
     with:
       node-version: '24'
+      scripts: lint typecheck test build

@@ -1,24 +1,42 @@
 <template>
-  <label for="expirationInput" class="form-label">
+  <label :for="id" class="form-label">
     {{ t(getI18nKey('label.expiration')) }}
   </label>
-  <div class="input-group">
-    <input
-      id="expirationInput"
-      v-model="model"
-      :min="today"
-      type="date"
-      class="form-control"
-      @keydown.prevent
-    />
-  </div>
+  <input
+    :id="id"
+    ref="input"
+    v-model="model"
+    :min="min"
+    max="9999-12-31"
+    type="date"
+    class="form-control"
+    :class="{ 'is-invalid': invalid }"
+    @focus="updateMin"
+    @input="checkInput"
+    @blur="checkInput"
+  />
 </template>
 
 <script setup lang="ts">
+import { ref, useId, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getI18nKey } from '@/common/utils';
+import { getI18nKey, getMinExpirationDate } from '@/common/utils';
 
 const { t } = useI18n();
+const id = useId();
+
+defineProps<{
+  invalid?: boolean;
+}>();
 const model = defineModel<number | string | null>();
-const today = new Date().toISOString().split('T')[0];
+const incomplete = defineModel<boolean>('incomplete', { default: false });
+const input = useTemplateRef<HTMLInputElement>('input');
+const checkInput = (): void => {
+  incomplete.value = input.value?.validity.badInput ?? false;
+};
+defineExpose({ checkInput });
+const min = ref(getMinExpirationDate());
+const updateMin = (): void => {
+  min.value = getMinExpirationDate();
+};
 </script>

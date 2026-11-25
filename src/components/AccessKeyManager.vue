@@ -67,6 +67,7 @@ import {
   onErrorCaptured,
   computed,
   reactive,
+  watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -94,8 +95,8 @@ const route = useRoute();
 interface ManagerProps {
   reference?: string;
   permissions?: string[];
-  currentPage?: number;
-  pageSize?: number;
+  currentPage?: number | string;
+  pageSize?: number | string;
   routerEnabled?: boolean;
 }
 
@@ -123,11 +124,17 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const { confirm } = useConfirmModal();
 
+const toPositiveInteger = (value: unknown, fallback: number): number => {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+};
+const normalizePage = (page: unknown): number => toPositiveInteger(page, 1);
+
 const state = reactive({
   loading: false,
   totalCount: 0,
-  currentPage: props.currentPage,
-  pageSize: props.pageSize,
+  currentPage: normalizePage(props.currentPage),
+  pageSize: toPositiveInteger(props.pageSize, 8),
   accessKeys: [] as AccessKey[],
   selectedAccessKey: undefined as AccessKey | undefined,
   createModalVisible: false,
@@ -138,28 +145,57 @@ const accessKeyClient = ref<AccessKeyApiClient>();
 const paginatedAccessKeys = computed(() =>
   state.accessKeys.slice(0, state.pageSize)
 );
-const fetchAccessKeys = async (): Promise<void> => {
-  if (accessKeyClient.value) {
-    const offset = (state.currentPage - 1) * state.pageSize;
+let pendingLoads = 0;
+const withLoading = async <T,>(task: () => Promise<T>): Promise<T> => {
+  pendingLoads += 1;
+  state.loading = true;
+  try {
+    return await task();
+  } finally {
+    pendingLoads -= 1;
+    state.loading = pendingLoads > 0;
+  }
+};
+
+let latestRequest = 0;
+let latestPending = false;
+let shownPage = state.currentPage;
+let announcedPage = state.currentPage;
+const fetchAccessKeys = async (): Promise<boolean> => {
+  if (!accessKeyClient.value) return false;
+  const request = ++latestRequest;
+  latestPending = true;
+  const page = state.currentPage;
+  try {
     const result = await accessKeyClient.value.getAccessKeys({
       permissions: props.permissions,
       reference: props.reference,
-      offset,
+      offset: (page - 1) * state.pageSize,
       limit: state.pageSize,
     });
+    if (request !== latestRequest) return false;
     state.accessKeys = result.accessKeys;
     state.totalCount = result.totalCount;
+    state.currentPage = page;
+    shownPage = page;
+    return true;
+  } catch (error) {
+    if (request !== latestRequest) return false;
+    throw error;
+  } finally {
+    if (request === latestRequest) {
+      latestPending = false;
+    }
   }
 };
-const openAccessKeyInfoModal = (index: number): void => {
-  state.selectedAccessKey = paginatedAccessKeys.value[index];
-  state.infoModalVisible = true;
+const lastPage = (): number =>
+  Math.max(1, Math.ceil(state.totalCount / state.pageSize));
+const clampPage = (): boolean => {
+  if (state.currentPage <= lastPage()) return false;
+  state.currentPage = lastPage();
+  return true;
 };
-const changePage = async (page: number): Promise<void> => {
-  state.loading = true;
-  state.currentPage = page;
-  await fetchAccessKeys();
-  state.loading = false;
+const announcePage = (page: number): void => {
   emit('page-change', page);
   if (props.routerEnabled) {
     router.push({
@@ -170,26 +206,74 @@ const changePage = async (page: number): Promise<void> => {
     });
   }
 };
+const openAccessKeyInfoModal = (index: number): void => {
+  state.selectedAccessKey = paginatedAccessKeys.value[index];
+  state.infoModalVisible = true;
+};
+const reload = async (task: () => Promise<void>): Promise<void> => {
+  try {
+    await withLoading(task);
+  } catch (error) {
+    if (!latestPending) {
+      state.currentPage = shownPage;
+      if (announcedPage !== shownPage) {
+        announcedPage = shownPage;
+        announcePage(shownPage);
+      }
+    }
+    throw error;
+  }
+  if (shownPage !== announcedPage) {
+    announcedPage = shownPage;
+    announcePage(shownPage);
+  }
+};
+const changePage = async (page: number): Promise<void> => {
+  state.currentPage = page;
+  await reload(async () => {
+    if ((await fetchAccessKeys()) && clampPage()) {
+      await fetchAccessKeys();
+    }
+  });
+};
+watch(
+  () => props.currentPage,
+  async page => {
+    const target = normalizePage(page);
+    if (target === state.currentPage) return;
+    announcedPage = target;
+    if (!accessKeyClient.value) {
+      state.currentPage = target;
+      return;
+    }
+    try {
+      await changePage(target);
+    } catch (error) {
+      handleError(error);
+    }
+  }
+);
 const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
   const title = t(getI18nKey('confirmRemove.title'));
   const message = t(getI18nKey('confirmRemove.text'), {
     secret:
       accessKey.id.length > 30
         ? `${accessKey.id.slice(0, 27)}...`
-        : accessKey.secret,
+        : accessKey.id,
   });
-  if (await confirm(title, message)) {
-    state.loading = true;
-    try {
-      await accessKeyClient.value?.deleteAccessKey(accessKey.id);
-      state.accessKeys = state.accessKeys.filter(
-        (a: AccessKey) => a.id !== accessKey.id
-      );
-      state.totalCount -= 1;
-    } finally {
-      state.loading = false;
+  const client = accessKeyClient.value;
+  if (!client || !(await confirm(title, message))) return;
+  await reload(async () => {
+    await client.deleteAccessKey(accessKey.id);
+    state.accessKeys = state.accessKeys.filter(
+      (a: AccessKey) => a.id !== accessKey.id
+    );
+    state.totalCount -= 1;
+    clampPage();
+    if ((await fetchAccessKeys()) && clampPage()) {
+      await fetchAccessKeys();
     }
-  }
+  });
 };
 const updateAccessKey = (accessKey: AccessKey): void => {
   const index = state.accessKeys.findIndex(
@@ -228,9 +312,17 @@ const addAccessKey = async (
       getActivationLink(accessKey.reference, secret)
     );
   }
-  state.totalCount += 1;
-  state.accessKeys.push(accessKey);
+  const reloading = reload(async () => {
+    await fetchAccessKeys();
+  }).then(
+    () => undefined,
+    (error: unknown) => ({ error })
+  );
   await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
+  const failure = await reloading;
+  if (failure) {
+    throw failure.error;
+  }
 };
 const initAccessKeyClient = async () => {
   const resolvedAuthStrategy = !accessKeyManagerState.authStrategy
@@ -253,13 +345,14 @@ const handleError = (error: unknown): void => {
 };
 onMounted(async (): Promise<void> => {
   try {
-    state.loading = true;
-    await initAccessKeyClient();
-    await fetchAccessKeys();
+    await reload(async () => {
+      await initAccessKeyClient();
+      if ((await fetchAccessKeys()) && clampPage()) {
+        await fetchAccessKeys();
+      }
+    });
   } catch (error) {
     handleError(error);
-  } finally {
-    state.loading = false;
   }
 });
 onErrorCaptured((error): void => {

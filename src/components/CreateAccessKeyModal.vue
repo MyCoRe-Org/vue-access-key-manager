@@ -3,7 +3,7 @@
     id="createAccessKeyModal"
     ref="createAccessKeyModalRef"
     v-model:visible="visible"
-    :title="t(getI18nKey('title.viewAccessKey'))"
+    :title="t(getI18nKey('title.createAccessKey'))"
     :busy="isBusy"
     @hidden="resetContent"
   >
@@ -45,10 +45,16 @@
         />
       </div>
       <div class="col-md-6">
-        <ExpirationInput v-model="form.expiration" />
+        <ExpirationInput
+          ref="expirationInput"
+          :key="expirationInputKey"
+          v-model="form.expiration"
+          v-model:incomplete="isExpirationIncomplete"
+          :invalid="submitted && !isExpirationValid"
+        />
       </div>
       <div class="col-12">
-        <ActiveInput id="inputActive" v-model="form.isActive" />
+        <ActiveInput v-model="form.isActive" />
       </div>
       <div class="col-12">
         <CommentInput v-model="form.comment" />
@@ -74,9 +80,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, ModelRef, onErrorCaptured, computed } from 'vue';
+import {
+  ref,
+  ModelRef,
+  onErrorCaptured,
+  computed,
+  watch,
+  useTemplateRef,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getI18nKey, getUnixTimestamp } from '@/common/utils';
+import {
+  getI18nKey,
+  getUnixTimestamp,
+  getMinExpirationDate,
+  isExpirationDateAllowed,
+} from '@/common/utils';
 import {
   AccessKey,
   CreateAccessKey,
@@ -106,20 +124,39 @@ const visible: ModelRef<boolean> = defineModel<boolean>('visible', {
   default: false,
 });
 
-const defaultForm = {
-  reference: props.reference !== undefined ? props.reference : '',
+const createDefaultForm = (): CreateAccessKey => ({
+  reference: props.reference ?? '',
   isActive: true,
   secret: '',
   type: '',
   comment: undefined,
   expiration: null,
-};
+});
 
-const form = ref<CreateAccessKey>({ ...defaultForm });
+const form = ref<CreateAccessKey>(createDefaultForm());
+watch(
+  () => props.reference,
+  reference => {
+    form.value.reference = reference ?? '';
+  }
+);
 const submitted = ref<boolean>(false);
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isSecretValid = computed(() => form.value.secret.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
+const isExpirationIncomplete = ref(false);
+const expirationInput =
+  useTemplateRef<InstanceType<typeof ExpirationInput>>('expirationInput');
+const expirationInputKey = ref(0);
+const minExpirationDate = ref(getMinExpirationDate());
+const isExpirationValid = computed(() =>
+  form.value.expiration
+    ? isExpirationDateAllowed(
+        String(form.value.expiration),
+        minExpirationDate.value
+      )
+    : !isExpirationIncomplete.value
+);
 
 const errorMessage = ref<string>();
 const isBusy = ref<boolean>(false);
@@ -128,7 +165,9 @@ const handleError = (error: unknown): void => {
     error instanceof Error ? error.message : t(getI18nKey('error.fatal'));
 };
 const resetForm = (): void => {
-  form.value = { ...defaultForm };
+  form.value = createDefaultForm();
+  isExpirationIncomplete.value = false;
+  expirationInputKey.value += 1;
   submitted.value = false;
 };
 const resetContent = (): void => {
@@ -155,30 +194,37 @@ const getAccessKey = (): CreateAccessKey => {
 
 const validateFrom = (): boolean => {
   return (
-    isReferenceValid.value && isSecretValid.value && isPermissionValid.value
+    isReferenceValid.value &&
+    isSecretValid.value &&
+    isPermissionValid.value &&
+    isExpirationValid.value
   );
 };
 
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
+  minExpirationDate.value = getMinExpirationDate();
+  expirationInput.value?.checkInput();
   if (!validateFrom()) return;
+  if (!props.accessKeyClient) {
+    errorMessage.value = t(getI18nKey('error.fatal'));
+    return;
+  }
+  errorMessage.value = undefined;
   isBusy.value = true;
-  if (props.accessKeyClient) {
-    try {
-      const accessKey = getAccessKey();
-      const accessKeyId =
-        await props.accessKeyClient.createAccessKey(accessKey);
-      const createdAccessKey =
-        await props.accessKeyClient.getAccessKey(accessKeyId);
-      emit('add-access-key', form.value.secret, createdAccessKey);
-      submitted.value = false;
-      visible.value = false;
-    } catch (error) {
-      handleError(error);
-    } finally {
-      isBusy.value = false;
-    }
+  try {
+    const accessKey = getAccessKey();
+    const accessKeyId = await props.accessKeyClient.createAccessKey(accessKey);
+    const createdAccessKey =
+      await props.accessKeyClient.getAccessKey(accessKeyId);
+    emit('add-access-key', form.value.secret, createdAccessKey);
+    submitted.value = false;
+    visible.value = false;
+  } catch (error) {
+    handleError(error);
+  } finally {
+    isBusy.value = false;
   }
 };
 onErrorCaptured((err): boolean => {
