@@ -13,6 +13,7 @@ import {
   createTestI18n,
   field,
   hasField,
+  typeIncompleteDate,
 } from '../helpers';
 
 const i18n = createTestI18n({
@@ -252,6 +253,21 @@ describe('AccessKeyInfoModal', () => {
       wrapper.get('button[type="submit"]').attributes('disabled')
     ).toBeUndefined();
     expect(wrapper.get('.alert-danger').text()).toBe('Fatal error');
+  });
+
+  it('keeps the expiration when the date is left incomplete', async () => {
+    const wrapper = await mountModal();
+    await typeIncompleteDate(field(wrapper, 'expiration'));
+    await submit(wrapper);
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('refuses a year with more than four digits', async () => {
+    const wrapper = await mountModal();
+    await field(wrapper, 'expiration').setValue('20301-01-01');
+    await submit(wrapper);
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
   });
 
   it('refuses changing the expiration to a passed date', async () => {

@@ -167,6 +167,7 @@ const fetchAccessKeys = async (): Promise<boolean> => {
     if (request !== latestRequest) return false;
     state.accessKeys = result.accessKeys;
     state.totalCount = result.totalCount;
+    state.currentPage = page;
     shownPage = page;
     return true;
   } catch (error) {
@@ -200,7 +201,9 @@ const reload = async (task: () => Promise<void>): Promise<void> => {
   try {
     await withLoading(task);
   } catch (error) {
-    state.currentPage = shownPage;
+    if (pendingLoads === 0) {
+      state.currentPage = shownPage;
+    }
     throw error;
   }
   if (shownPage !== announcedPage) {
@@ -299,9 +302,11 @@ const handleError = (error: unknown): void => {
 };
 onMounted(async (): Promise<void> => {
   try {
-    await withLoading(async () => {
+    await reload(async () => {
       await initAccessKeyClient();
-      await fetchAccessKeys();
+      if ((await fetchAccessKeys()) && clampPage()) {
+        await fetchAccessKeys();
+      }
     });
   } catch (error) {
     handleError(error);

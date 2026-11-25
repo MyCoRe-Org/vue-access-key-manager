@@ -36,6 +36,7 @@
       <div class="col-md-6">
         <ExpirationInput
           v-model="form.expiration"
+          v-model:incomplete="isExpirationIncomplete"
           :invalid="submitted && !isExpirationValid"
         />
       </div>
@@ -77,8 +78,8 @@ import {
 import {
   getI18nKey,
   convertUnixToIso,
-  getMinExpirationDate,
   getUnixTimestamp,
+  isExpirationDateAllowed,
 } from '@/common/utils';
 import PermissionInput from './inputs/PermissionInput.vue';
 import ReferenceInput from './inputs/ReferenceInput.vue';
@@ -124,11 +125,12 @@ const form = ref<FormData>({
 });
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
-const isExpirationValid = computed(
-  () =>
-    !form.value.expiration ||
-    form.value.expiration === initialForm.value?.expiration ||
-    form.value.expiration >= getMinExpirationDate()
+const isExpirationIncomplete = ref(false);
+const isExpirationValid = computed(() =>
+  form.value.expiration
+    ? form.value.expiration === initialForm.value?.expiration ||
+      isExpirationDateAllowed(form.value.expiration)
+    : !isExpirationIncomplete.value
 );
 
 watch(
@@ -145,6 +147,7 @@ watch(
       comment: accessKey.comment,
     };
     form.value = { ...initialForm.value };
+    isExpirationIncomplete.value = false;
     errorMessage.value = undefined;
     submitted.value = false;
   },

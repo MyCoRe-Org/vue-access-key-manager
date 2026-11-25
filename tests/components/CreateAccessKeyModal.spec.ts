@@ -9,6 +9,7 @@ import {
   createClientMock,
   createTestI18n,
   field,
+  typeIncompleteDate,
 } from '../helpers';
 
 const i18n = createTestI18n({
@@ -72,6 +73,23 @@ describe('CreateAccessKeyModal', () => {
       wrapper.get('button[type="submit"]').attributes('disabled')
     ).toBeUndefined();
     expect(wrapper.get('.alert-danger').text()).toBe('Fatal error');
+  });
+
+  it('refuses an incomplete expiration instead of dropping it', async () => {
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    await fillForm(wrapper);
+    await typeIncompleteDate(field(wrapper, 'expiration'));
+    await submit(wrapper);
+    expect(client.createAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('refuses a year with more than four digits', async () => {
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    await fillForm(wrapper);
+    await field(wrapper, 'expiration').setValue('20301-01-01');
+    await submit(wrapper);
+    expect(client.createAccessKey).not.toHaveBeenCalled();
   });
 
   it('refuses an expiration whose UTC midnight has passed', async () => {

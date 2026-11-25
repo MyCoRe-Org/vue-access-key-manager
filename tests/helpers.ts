@@ -68,3 +68,13 @@ export const field = <T extends Element = HTMLInputElement>(
 
 export const hasField = (wrapper: VueWrapper, name: string): boolean =>
   wrapper.findAll('label').some(l => l.text() === getI18nKey(`label.${name}`));
+
+export const typeIncompleteDate = async (
+  input: ReturnType<typeof field>
+): Promise<void> => {
+  Object.defineProperty(input.element, 'validity', {
+    configurable: true,
+    value: { badInput: true },
+  });
+  await input.setValue('');
+};

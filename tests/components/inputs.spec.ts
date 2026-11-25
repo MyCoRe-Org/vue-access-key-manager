@@ -82,6 +82,22 @@ describe('ExpirationInput', () => {
     }
   );
 
+  it('limits the year to four digits', () => {
+    const wrapper = mount(ExpirationInput, { global });
+    expect(wrapper.get('input').attributes('max')).toBe('9999-12-31');
+  });
+
+  it('reports an incomplete date', async () => {
+    const wrapper = mount(ExpirationInput, { global });
+    const input = wrapper.get('input');
+    Object.defineProperty(input.element, 'validity', {
+      configurable: true,
+      value: { badInput: true },
+    });
+    await input.trigger('input');
+    expect(wrapper.emitted('update:incomplete')).toEqual([[true]]);
+  });
+
   it('marks the field as invalid', () => {
     const wrapper = mount(ExpirationInput, {
       global,

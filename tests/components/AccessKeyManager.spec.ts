@@ -176,6 +176,23 @@ describe('AccessKeyManager', () => {
       });
     });
 
+    it('moves to the last page when started past it', async () => {
+      mocks.client.getAccessKeys
+        .mockResolvedValueOnce({ accessKeys: [], totalCount: 10 })
+        .mockResolvedValueOnce({ accessKeys: keys(2, 8), totalCount: 10 });
+      const wrapper = await mountManager({
+        currentPage: 10,
+        pageSize: 8,
+        routerEnabled: true,
+      });
+      expect(mocks.client.getAccessKeys).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 8, limit: 8 })
+      );
+      expect(wrapper.emitted('page-change')).toEqual([[2]]);
+      expect(mocks.router.push).toHaveBeenCalledWith({ query: { page: '2' } });
+      expect(wrapper.get('.page-item.active button').text()).toBe('2');
+    });
+
     it('respects current-page and page-size', async () => {
       await mountManager({ currentPage: 3, pageSize: 5 });
       expect(mocks.client.getAccessKeys).toHaveBeenCalledWith(
@@ -441,6 +458,41 @@ describe('AccessKeyManager', () => {
       ).toEqual(['key-2']);
       expect(wrapper.emitted('error')).toHaveLength(1);
       expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a newer page highlighted when a delete fails meanwhile', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ pageSize: 1 });
+      let rejectDelete: (error: Error) => void = () => undefined;
+      mocks.client.deleteAccessKey.mockReturnValue(
+        new Promise((_, reject) => {
+          rejectDelete = reject;
+        })
+      );
+      let resolvePage: (value: unknown) => void = () => undefined;
+      mocks.client.getAccessKeys.mockReturnValueOnce(
+        new Promise(resolve => {
+          resolvePage = resolve;
+        })
+      );
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1)[0]);
+      await flushPromises();
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      rejectDelete(new Error('forbidden'));
+      await flushPromises();
+      resolvePage({ accessKeys: [keys(1, 1)[0]], totalCount: 3 });
+      await flushPromises();
+
+      expect(wrapper.get('.page-item.active button').text()).toBe('2');
+      expect(
+        wrapper.getComponent(AccessKeyTable).props('accessKeys')[0].id
+      ).toBe('key-2');
+      expect(wrapper.emitted('page-change')).toEqual([[2]]);
     });
 
     it('stays on the shown page when the reload after a delete fails', async () => {
