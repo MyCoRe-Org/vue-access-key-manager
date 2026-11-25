@@ -216,6 +216,10 @@ const reload = async (task: () => Promise<void>): Promise<void> => {
   } catch (error) {
     if (!latestPending) {
       state.currentPage = shownPage;
+      if (announcedPage !== shownPage) {
+        announcedPage = shownPage;
+        announcePage(shownPage);
+      }
     }
     throw error;
   }
@@ -308,10 +312,17 @@ const addAccessKey = async (
       getActivationLink(accessKey.reference, secret)
     );
   }
-  await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
-  await reload(async () => {
+  const reloading = reload(async () => {
     await fetchAccessKeys();
-  });
+  }).then(
+    () => undefined,
+    (error: unknown) => ({ error })
+  );
+  await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
+  const failure = await reloading;
+  if (failure) {
+    throw failure.error;
+  }
 };
 const initAccessKeyClient = async () => {
   const resolvedAuthStrategy = !accessKeyManagerState.authStrategy

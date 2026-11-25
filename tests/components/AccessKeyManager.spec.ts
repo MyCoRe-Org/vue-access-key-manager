@@ -244,6 +244,29 @@ describe('AccessKeyManager', () => {
       expect(wrapper.get('.page-item.active button').text()).toBe('1');
     });
 
+    it('hands the shown page back to the host after a failed page change', async () => {
+      const wrapper = await mountManager({ pageSize: 1, routerEnabled: true });
+      mocks.client.getAccessKeys.mockRejectedValueOnce(
+        new Error('server error')
+      );
+      await wrapper.setProps({ currentPage: 2 });
+      await flushPromises();
+      expect(wrapper.emitted('page-change')).toEqual([[1]]);
+      expect(mocks.router.push).toHaveBeenCalledWith({ query: { page: '1' } });
+
+      await wrapper.setProps({ currentPage: 1 });
+      mocks.client.getAccessKeys.mockResolvedValue({
+        accessKeys: [keys(1, 1)[0]],
+        totalCount: 2,
+      });
+      await wrapper.setProps({ currentPage: 2 });
+      await flushPromises();
+      expect(wrapper.get('.page-item.active button').text()).toBe('2');
+      expect(
+        wrapper.getComponent(AccessKeyTable).props('accessKeys')[0].id
+      ).toBe('key-2');
+    });
+
     it('accepts page and page size as strings from the template', async () => {
       await mountManager({ currentPage: '3', pageSize: '5' });
       expect(mocks.client.getAccessKeys).toHaveBeenCalledWith(
@@ -808,6 +831,49 @@ describe('AccessKeyManager', () => {
         expect(props.reference).toBe('mir_mods_1');
         expect(props.permissions).toEqual(['read']);
       }
+    });
+
+    it('reloads the table while the success dialog is open', async () => {
+      let closeDialog: (value: boolean) => void = () => undefined;
+      mocks.confirm.mockReturnValue(
+        new Promise(resolve => {
+          closeDialog = resolve;
+        })
+      );
+      const wrapper = await mountManager();
+      const created = createAccessKey({ id: 'key-new' });
+      mocks.client.getAccessKeys.mockResolvedValue({
+        accessKeys: [...keys(2), created],
+        totalCount: 3,
+      });
+      wrapper
+        .getComponent(CreateAccessKeyModal)
+        .vm.$emit('add-access-key', 'my-secret', created);
+      await flushPromises();
+      expect(
+        wrapper.getComponent(AccessKeyTable).props('accessKeys')
+      ).toHaveLength(3);
+      closeDialog(true);
+      await flushPromises();
+    });
+
+    it('reports a failed reload only after the success dialog', async () => {
+      let closeDialog: (value: boolean) => void = () => undefined;
+      mocks.confirm.mockReturnValue(
+        new Promise(resolve => {
+          closeDialog = resolve;
+        })
+      );
+      const wrapper = await mountManager();
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      wrapper
+        .getComponent(CreateAccessKeyModal)
+        .vm.$emit('add-access-key', 'my-secret', createAccessKey());
+      await flushPromises();
+      expect(mocks.errorHandler).not.toHaveBeenCalled();
+      closeDialog(true);
+      await flushPromises();
+      expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
     });
 
     it('shows the secret even if the reload fails', async () => {

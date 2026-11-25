@@ -35,6 +35,7 @@
       </div>
       <div class="col-md-6">
         <ExpirationInput
+          ref="expirationInput"
           :key="expirationInputKey"
           v-model="form.expiration"
           v-model:incomplete="isExpirationIncomplete"
@@ -68,7 +69,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured, watch, ModelRef, computed } from 'vue';
+import {
+  ref,
+  onErrorCaptured,
+  watch,
+  ModelRef,
+  computed,
+  useTemplateRef,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { BaseModal } from '@mycore-org/vue-components';
 import {
@@ -128,6 +136,8 @@ const form = ref<FormData>({
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
 const isExpirationIncomplete = ref(false);
+const expirationInput =
+  useTemplateRef<InstanceType<typeof ExpirationInput>>('expirationInput');
 const expirationInputKey = ref(0);
 const minExpirationDate = ref(getMinExpirationDate());
 const isExpirationValid = computed(() =>
@@ -196,6 +206,7 @@ const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
   minExpirationDate.value = getMinExpirationDate();
+  expirationInput.value?.checkInput();
   if (!validateFrom()) return;
   if (!props.accessKeyClient || !props.accessKey) {
     errorMessage.value = t(getI18nKey('error.fatal'));
@@ -210,9 +221,14 @@ const handleSubmit = async (): Promise<void> => {
   isBusy.value = true;
   try {
     await props.accessKeyClient.patchAccessKey(props.accessKey.id, payload);
-    const updatedAccessKey = await props.accessKeyClient.getAccessKey(
-      props.accessKey.id
-    );
+    let updatedAccessKey: AccessKey;
+    try {
+      updatedAccessKey = await props.accessKeyClient.getAccessKey(
+        props.accessKey.id
+      );
+    } catch {
+      updatedAccessKey = { ...props.accessKey, ...payload };
+    }
     emit('update-access-key', updatedAccessKey);
     visible.value = false;
   } catch (error) {

@@ -13,6 +13,7 @@ import {
   createTestI18n,
   field,
   hasField,
+  markDateIncomplete,
   typeIncompleteDate,
 } from '../helpers';
 
@@ -261,6 +262,28 @@ describe('AccessKeyInfoModal', () => {
     await submit(wrapper);
     expect(client.patchAccessKey).not.toHaveBeenCalled();
     expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('notices a half typed date that never fired an input event', async () => {
+    const wrapper = await mountModal({}, createAccessKey({ expiration: null }));
+    await field(wrapper, 'comment').setValue('changed');
+    markDateIncomplete(field(wrapper, 'expiration'));
+    await submit(wrapper);
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('keeps the saved changes when reloading the key fails', async () => {
+    client.getAccessKey.mockRejectedValue(new Error('server error'));
+    const wrapper = await mountModal();
+    await field(wrapper, 'comment').setValue('changed');
+    await submit(wrapper);
+    expect(client.patchAccessKey).toHaveBeenCalledTimes(1);
+    expect(wrapper.emitted('update-access-key')).toEqual([
+      [{ ...accessKey, comment: 'changed' }],
+    ]);
+    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
+    expect(wrapper.find('.alert-danger').exists()).toBe(false);
   });
 
   it('clears a half typed date when reopened', async () => {

@@ -78,3 +78,10 @@ export const typeIncompleteDate = async (
   });
   await input.setValue('');
 };
+
+export const markDateIncomplete = (input: ReturnType<typeof field>): void => {
+  Object.defineProperty(input.element, 'validity', {
+    configurable: true,
+    value: { badInput: true },
+  });
+};

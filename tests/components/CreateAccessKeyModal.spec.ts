@@ -9,6 +9,7 @@ import {
   createClientMock,
   createTestI18n,
   field,
+  markDateIncomplete,
   typeIncompleteDate,
 } from '../helpers';
 
@@ -83,6 +84,15 @@ describe('CreateAccessKeyModal', () => {
     const wrapper = mountModal({ reference: 'mir_mods_1' });
     await fillForm(wrapper);
     await typeIncompleteDate(field(wrapper, 'expiration'));
+    await submit(wrapper);
+    expect(client.createAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('notices a half typed date that never fired an input event', async () => {
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    await fillForm(wrapper);
+    markDateIncomplete(field(wrapper, 'expiration'));
     await submit(wrapper);
     expect(client.createAccessKey).not.toHaveBeenCalled();
     expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');

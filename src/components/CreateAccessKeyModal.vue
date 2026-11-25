@@ -46,6 +46,7 @@
       </div>
       <div class="col-md-6">
         <ExpirationInput
+          ref="expirationInput"
           :key="expirationInputKey"
           v-model="form.expiration"
           v-model:incomplete="isExpirationIncomplete"
@@ -79,7 +80,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, ModelRef, onErrorCaptured, computed, watch } from 'vue';
+import {
+  ref,
+  ModelRef,
+  onErrorCaptured,
+  computed,
+  watch,
+  useTemplateRef,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   getI18nKey,
@@ -137,6 +145,8 @@ const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isSecretValid = computed(() => form.value.secret.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
 const isExpirationIncomplete = ref(false);
+const expirationInput =
+  useTemplateRef<InstanceType<typeof ExpirationInput>>('expirationInput');
 const expirationInputKey = ref(0);
 const minExpirationDate = ref(getMinExpirationDate());
 const isExpirationValid = computed(() =>
@@ -195,6 +205,7 @@ const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
   minExpirationDate.value = getMinExpirationDate();
+  expirationInput.value?.checkInput();
   if (!validateFrom()) return;
   if (!props.accessKeyClient) {
     errorMessage.value = t(getI18nKey('error.fatal'));

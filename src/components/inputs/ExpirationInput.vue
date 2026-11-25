@@ -4,6 +4,7 @@
   </label>
   <input
     :id="id"
+    ref="input"
     v-model="model"
     :min="min"
     max="9999-12-31"
@@ -17,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, useId } from 'vue';
+import { ref, useId, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getI18nKey, getMinExpirationDate } from '@/common/utils';
 
@@ -29,9 +30,12 @@ defineProps<{
 }>();
 const model = defineModel<number | string | null>();
 const incomplete = defineModel<boolean>('incomplete', { default: false });
-const checkInput = (event: Event): void => {
-  incomplete.value = (event.target as HTMLInputElement).validity.badInput;
+const input = useTemplateRef<HTMLInputElement>('input');
+const checkInput = (): boolean => {
+  incomplete.value = input.value?.validity.badInput ?? false;
+  return incomplete.value;
 };
+defineExpose({ checkInput });
 const min = ref(getMinExpirationDate());
 const updateMin = (): void => {
   min.value = getMinExpirationDate();
