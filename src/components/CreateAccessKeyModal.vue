@@ -45,7 +45,10 @@
         />
       </div>
       <div class="col-md-6">
-        <ExpirationInput v-model="form.expiration" />
+        <ExpirationInput
+          v-model="form.expiration"
+          :invalid="submitted && !isExpirationValid"
+        />
       </div>
       <div class="col-12">
         <ActiveInput v-model="form.isActive" />
@@ -76,7 +79,11 @@
 <script setup lang="ts">
 import { ref, ModelRef, onErrorCaptured, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { getI18nKey, getUnixTimestamp } from '@/common/utils';
+import {
+  getI18nKey,
+  getMinExpirationDate,
+  getUnixTimestamp,
+} from '@/common/utils';
 import {
   AccessKey,
   CreateAccessKey,
@@ -126,6 +133,11 @@ const submitted = ref<boolean>(false);
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isSecretValid = computed(() => form.value.secret.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
+const isExpirationValid = computed(
+  () =>
+    !form.value.expiration ||
+    String(form.value.expiration) >= getMinExpirationDate()
+);
 
 const errorMessage = ref<string>();
 const isBusy = ref<boolean>(false);
@@ -161,14 +173,21 @@ const getAccessKey = (): CreateAccessKey => {
 
 const validateFrom = (): boolean => {
   return (
-    isReferenceValid.value && isSecretValid.value && isPermissionValid.value
+    isReferenceValid.value &&
+    isSecretValid.value &&
+    isPermissionValid.value &&
+    isExpirationValid.value
   );
 };
 
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
-  if (!validateFrom() || !props.accessKeyClient) return;
+  if (!validateFrom()) return;
+  if (!props.accessKeyClient) {
+    errorMessage.value = t(getI18nKey('error.fatal'));
+    return;
+  }
   errorMessage.value = undefined;
   isBusy.value = true;
   try {

@@ -32,6 +32,12 @@ export const generateRandomString = (length: number): string => {
 export const getUnixTimestamp = (date: number | string): number =>
   Math.floor(new Date(date).getTime());
 
+export const getMinExpirationDate = (): string => {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+};
+
 export const convertUnixToIso = (unixTimestamp: number): string => {
   return new Date(unixTimestamp).toISOString().slice(0, 10);
 };

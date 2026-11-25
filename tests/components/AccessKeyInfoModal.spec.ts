@@ -245,12 +245,32 @@ describe('AccessKeyInfoModal', () => {
     ).toBeUndefined();
   });
 
-  it('does not get stuck busy without a client', async () => {
+  it('shows an error instead of getting stuck without a client', async () => {
     const wrapper = await mountModal({ accessKeyClient: undefined });
     await submit(wrapper);
     expect(
       wrapper.get('button[type="submit"]').attributes('disabled')
     ).toBeUndefined();
+    expect(wrapper.get('.alert-danger').text()).toBe('Fatal error');
+  });
+
+  it('refuses changing the expiration to a passed date', async () => {
+    const wrapper = await mountModal();
+    await field(wrapper, 'expiration').setValue('2020-01-01');
+    await submit(wrapper);
+    expect(client.patchAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('keeps a passed expiration that was not changed', async () => {
+    const expired = createAccessKey({ expiration: Date.UTC(2020, 0, 1) });
+    client.getAccessKey.mockResolvedValue(expired);
+    const wrapper = await mountModal({}, expired);
+    await field(wrapper, 'comment').setValue('still expired');
+    await submit(wrapper);
+    expect(client.patchAccessKey).toHaveBeenCalledWith('key-1', {
+      comment: 'still expired',
+    });
   });
 
   it('shows a generic error message for non-Error rejections', async () => {

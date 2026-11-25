@@ -72,8 +72,8 @@ describe('ExpirationInput', () => {
     }
   );
 
-  it.each(['Tab', 'Backspace', 'Delete', 'Escape', 'Enter'])(
-    'lets %s through',
+  it.each(['Tab', 'ArrowUp', ' ', '1', 'Backspace'])(
+    'leaves the %s key to the browser',
     key => {
       const input = mount(ExpirationInput, { global }).get('input');
       const event = new KeyboardEvent('keydown', { key, cancelable: true });
@@ -82,11 +82,12 @@ describe('ExpirationInput', () => {
     }
   );
 
-  it.each(['1', 'a', 'ArrowUp', 'ArrowDown'])('blocks typing %s', key => {
-    const input = mount(ExpirationInput, { global }).get('input');
-    const event = new KeyboardEvent('keydown', { key, cancelable: true });
-    input.element.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true);
+  it('marks the field as invalid', () => {
+    const wrapper = mount(ExpirationInput, {
+      global,
+      props: { invalid: true },
+    });
+    expect(wrapper.get('input').classes()).toContain('is-invalid');
   });
 
   it('updates the earliest date when focused after midnight', async () => {

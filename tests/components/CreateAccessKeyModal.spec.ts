@@ -64,13 +64,23 @@ describe('CreateAccessKeyModal', () => {
     }
   });
 
-  it('does not get stuck busy without a client', async () => {
+  it('shows an error instead of getting stuck without a client', async () => {
     const wrapper = mountModal({ accessKeyClient: undefined });
     await fillForm(wrapper, { reference: 'mir_mods_1' });
     await submit(wrapper);
     expect(
       wrapper.get('button[type="submit"]').attributes('disabled')
     ).toBeUndefined();
+    expect(wrapper.get('.alert-danger').text()).toBe('Fatal error');
+  });
+
+  it('refuses an expiration whose UTC midnight has passed', async () => {
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    await fillForm(wrapper);
+    await field(wrapper, 'expiration').setValue('2020-01-01');
+    await submit(wrapper);
+    expect(client.createAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
   });
 
   it('prefills and locks the reference when given', () => {

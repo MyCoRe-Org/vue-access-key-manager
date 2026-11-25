@@ -98,6 +98,16 @@ describe('AccessKeyManager', () => {
     vi.mocked(fetchJwt).mockResolvedValue('jwt-token');
   });
 
+  it('does not delete anything without a client', async () => {
+    vi.mocked(fetchJwt).mockRejectedValue(new Error('unauthorized'));
+    const wrapper = await mountManager({ reference: 'mir_mods_1' });
+    wrapper
+      .getComponent(AccessKeyTable)
+      .vm.$emit('remove-access-key', keys(1)[0]);
+    await flushPromises();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+
   it('throws when the plugin is not installed', () => {
     expect(() =>
       mount(AccessKeyManager, {
@@ -267,6 +277,50 @@ describe('AccessKeyManager', () => {
       ).toBe('key-3');
     });
 
+    it('announces a page picked before a delete reloads it', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ pageSize: 1, routerEnabled: true });
+      const pending: ((value: unknown) => void)[] = [];
+      mocks.client.getAccessKeys.mockImplementation(
+        () => new Promise(resolve => pending.push(resolve))
+      );
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1)[0]);
+      await flushPromises();
+      pending[1]({ accessKeys: [keys(1, 1)[0]], totalCount: 2 });
+      pending[0]({ accessKeys: [keys(1, 1)[0]], totalCount: 3 });
+      await flushPromises();
+      expect(wrapper.emitted('page-change')).toEqual([[2]]);
+      expect(mocks.router.push).toHaveBeenCalledTimes(1);
+    });
+
+    it('announces a page picked during a delete only once', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ pageSize: 1, routerEnabled: true });
+      const pending: ((value: unknown) => void)[] = [];
+      mocks.client.getAccessKeys.mockImplementation(
+        () => new Promise(resolve => pending.push(resolve))
+      );
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1)[0]);
+      await flushPromises();
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      pending[1]({ accessKeys: [keys(1, 2)[0]], totalCount: 2 });
+      pending[0]({ accessKeys: [keys(1, 1)[0]], totalCount: 2 });
+      await flushPromises();
+      expect(wrapper.emitted('page-change')).toEqual([[2]]);
+      expect(mocks.router.push).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores the response of an older request', async () => {
       mocks.client.getAccessKeys.mockResolvedValueOnce({
         accessKeys: keys(1),
@@ -389,6 +443,25 @@ describe('AccessKeyManager', () => {
       expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
     });
 
+    it('stays on the shown page when the reload after a delete fails', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: [keys(1, 32)[0]],
+        totalCount: 33,
+      });
+      const wrapper = await mountManager({ currentPage: 5, pageSize: 8 });
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      wrapper
+        .getComponent(AccessKeyTable)
+        .vm.$emit('remove-access-key', keys(1, 32)[0]);
+      await flushPromises();
+      expect(
+        wrapper.get('button[aria-label="4"]').attributes('disabled')
+      ).toBeUndefined();
+      expect(wrapper.emitted('page-change')).toBeUndefined();
+      expect(mocks.router.push).not.toHaveBeenCalled();
+      expect(mocks.errorHandler).toHaveBeenCalledTimes(1);
+    });
+
     it('jumps to the last page when the list shrank by several pages', async () => {
       mocks.client.getAccessKeys.mockResolvedValueOnce({
         accessKeys: [keys(1, 32)[0]],
@@ -490,6 +563,27 @@ describe('AccessKeyManager', () => {
   });
 
   describe('creating', () => {
+    it('follows the modals closing themselves', async () => {
+      const wrapper = await mountManager();
+      await wrapper.get('button.btn-primary').trigger('click');
+      wrapper
+        .getComponent(CreateAccessKeyModal)
+        .vm.$emit('update:visible', false);
+      await flushPromises();
+      expect(wrapper.getComponent(CreateAccessKeyModal).props('visible')).toBe(
+        false
+      );
+      wrapper.getComponent(AccessKeyTable).vm.$emit('view-access-key', 0);
+      await flushPromises();
+      wrapper
+        .getComponent(AccessKeyInfoModal)
+        .vm.$emit('update:visible', false);
+      await flushPromises();
+      expect(wrapper.getComponent(AccessKeyInfoModal).props('visible')).toBe(
+        false
+      );
+    });
+
     it('opens the create modal', async () => {
       const wrapper = await mountManager();
       expect(wrapper.getComponent(CreateAccessKeyModal).props('visible')).toBe(

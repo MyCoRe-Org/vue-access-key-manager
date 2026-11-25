@@ -152,6 +152,7 @@ const withLoading = async <T,>(task: () => Promise<T>): Promise<T> => {
 
 let latestRequest = 0;
 let shownPage = state.currentPage;
+let announcedPage = state.currentPage;
 const fetchAccessKeys = async (): Promise<boolean> => {
   if (!accessKeyClient.value) return true;
   const request = ++latestRequest;
@@ -195,18 +196,23 @@ const openAccessKeyInfoModal = (index: number): void => {
   state.selectedAccessKey = paginatedAccessKeys.value[index];
   state.infoModalVisible = true;
 };
-const changePage = async (page: number): Promise<void> => {
-  state.currentPage = page;
-  let applied: boolean;
+const reload = async (task: () => Promise<void>): Promise<void> => {
   try {
-    applied = await withLoading(fetchAccessKeys);
+    await withLoading(task);
   } catch (error) {
     state.currentPage = shownPage;
     throw error;
   }
-  if (applied) {
-    announcePage(page);
+  if (shownPage !== announcedPage) {
+    announcedPage = shownPage;
+    announcePage(shownPage);
   }
+};
+const changePage = async (page: number): Promise<void> => {
+  state.currentPage = page;
+  await reload(async () => {
+    await fetchAccessKeys();
+  });
 };
 const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
   const title = t(getI18nKey('confirmRemove.title'));
@@ -216,25 +222,19 @@ const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
         ? `${accessKey.id.slice(0, 27)}...`
         : accessKey.id,
   });
-  if (!(await confirm(title, message))) return;
-  const startPage = state.currentPage;
-  try {
-    await withLoading(async () => {
-      await accessKeyClient.value?.deleteAccessKey(accessKey.id);
-      state.accessKeys = state.accessKeys.filter(
-        (a: AccessKey) => a.id !== accessKey.id
-      );
-      state.totalCount -= 1;
-      clampPage();
-      if ((await fetchAccessKeys()) && clampPage()) {
-        await fetchAccessKeys();
-      }
-    });
-  } finally {
-    if (state.currentPage !== startPage) {
-      announcePage(state.currentPage);
+  const client = accessKeyClient.value;
+  if (!client || !(await confirm(title, message))) return;
+  await reload(async () => {
+    await client.deleteAccessKey(accessKey.id);
+    state.accessKeys = state.accessKeys.filter(
+      (a: AccessKey) => a.id !== accessKey.id
+    );
+    state.totalCount -= 1;
+    clampPage();
+    if ((await fetchAccessKeys()) && clampPage()) {
+      await fetchAccessKeys();
     }
-  }
+  });
 };
 const updateAccessKey = (accessKey: AccessKey): void => {
   const index = state.accessKeys.findIndex(
@@ -274,7 +274,9 @@ const addAccessKey = async (
     );
   }
   await confirm(t(getI18nKey('success.add.title')), message, { okOnly: true });
-  await withLoading(fetchAccessKeys);
+  await reload(async () => {
+    await fetchAccessKeys();
+  });
 };
 const initAccessKeyClient = async () => {
   const resolvedAuthStrategy = !accessKeyManagerState.authStrategy

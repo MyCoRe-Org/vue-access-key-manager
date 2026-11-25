@@ -34,7 +34,10 @@
         />
       </div>
       <div class="col-md-6">
-        <ExpirationInput v-model="form.expiration" />
+        <ExpirationInput
+          v-model="form.expiration"
+          :invalid="submitted && !isExpirationValid"
+        />
       </div>
       <div class="col-12">
         <ActiveInput v-model="form.isActive" />
@@ -71,7 +74,12 @@ import {
   PartialUpdateAccessKey,
   AccessKeyApiClient,
 } from '@jsr/mycore__js-common/access-key';
-import { getI18nKey, convertUnixToIso, getUnixTimestamp } from '@/common/utils';
+import {
+  getI18nKey,
+  convertUnixToIso,
+  getMinExpirationDate,
+  getUnixTimestamp,
+} from '@/common/utils';
 import PermissionInput from './inputs/PermissionInput.vue';
 import ReferenceInput from './inputs/ReferenceInput.vue';
 import ActiveInput from './inputs/ActiveInput.vue';
@@ -116,6 +124,12 @@ const form = ref<FormData>({
 });
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
+const isExpirationValid = computed(
+  () =>
+    !form.value.expiration ||
+    form.value.expiration === initialForm.value?.expiration ||
+    form.value.expiration >= getMinExpirationDate()
+);
 
 watch(
   [() => props.accessKey, visible],
@@ -165,13 +179,19 @@ const buildAccessKeyPayload = (): PartialUpdateAccessKey => {
 };
 
 const validateFrom = (): boolean => {
-  return isReferenceValid.value && isPermissionValid.value;
+  return (
+    isReferenceValid.value && isPermissionValid.value && isExpirationValid.value
+  );
 };
 
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
-  if (!validateFrom() || !props.accessKeyClient || !props.accessKey) return;
+  if (!validateFrom()) return;
+  if (!props.accessKeyClient || !props.accessKey) {
+    errorMessage.value = t(getI18nKey('error.fatal'));
+    return;
+  }
   const payload = buildAccessKeyPayload();
   if (Object.keys(payload).length === 0) {
     visible.value = false;
