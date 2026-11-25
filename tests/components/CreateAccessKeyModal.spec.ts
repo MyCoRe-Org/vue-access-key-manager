@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import type { AccessKeyApiClient } from '@jsr/mycore__js-common/access-key';
 import CreateAccessKeyModal from '@/components/CreateAccessKeyModal.vue';
@@ -50,6 +50,10 @@ describe('CreateAccessKeyModal', () => {
     client = createClientMock();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses the create title', () => {
     expect(mountModal().getComponent(BaseModalStub).props('title')).toBe(
       'Create access key'
@@ -79,6 +83,30 @@ describe('CreateAccessKeyModal', () => {
     const wrapper = mountModal({ reference: 'mir_mods_1' });
     await fillForm(wrapper);
     await typeIncompleteDate(field(wrapper, 'expiration'));
+    await submit(wrapper);
+    expect(client.createAccessKey).not.toHaveBeenCalled();
+    expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
+  });
+
+  it('clears a half typed date when the modal is reset', async () => {
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    const before = field(wrapper, 'expiration').element;
+    await typeIncompleteDate(field(wrapper, 'expiration'));
+    wrapper.getComponent(BaseModalStub).vm.$emit('hidden');
+    await flushPromises();
+    expect(field(wrapper, 'expiration').element).not.toBe(before);
+  });
+
+  it('checks the earliest date again after midnight', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-01-15T23:59:00Z'));
+    const wrapper = mountModal({ reference: 'mir_mods_1' });
+    await fillForm(wrapper, { secret: ' ' });
+    await field(wrapper, 'expiration').setValue('2026-01-16');
+    await submit(wrapper);
+    expect(field(wrapper, 'expiration').classes()).not.toContain('is-invalid');
+    vi.setSystemTime(new Date('2026-01-16T00:01:00Z'));
+    await field(wrapper, 'secret').setValue('secret');
     await submit(wrapper);
     expect(client.createAccessKey).not.toHaveBeenCalled();
     expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');

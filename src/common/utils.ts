@@ -38,8 +38,10 @@ export const getMinExpirationDate = (): string => {
   return date.toISOString().slice(0, 10);
 };
 
-export const isExpirationDateAllowed = (value: string): boolean =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= getMinExpirationDate();
+export const isExpirationDateAllowed = (
+  value: string,
+  minDate: string = getMinExpirationDate()
+): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= minDate;
 
 export const convertUnixToIso = (unixTimestamp: number): string => {
   return new Date(unixTimestamp).toISOString().slice(0, 10);

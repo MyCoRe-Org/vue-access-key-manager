@@ -35,6 +35,7 @@
       </div>
       <div class="col-md-6">
         <ExpirationInput
+          :key="expirationInputKey"
           v-model="form.expiration"
           v-model:incomplete="isExpirationIncomplete"
           :invalid="submitted && !isExpirationValid"
@@ -79,6 +80,7 @@ import {
   getI18nKey,
   convertUnixToIso,
   getUnixTimestamp,
+  getMinExpirationDate,
   isExpirationDateAllowed,
 } from '@/common/utils';
 import PermissionInput from './inputs/PermissionInput.vue';
@@ -126,10 +128,12 @@ const form = ref<FormData>({
 const isReferenceValid = computed(() => form.value.reference.trim().length > 0);
 const isPermissionValid = computed(() => form.value.type.trim().length > 0);
 const isExpirationIncomplete = ref(false);
+const expirationInputKey = ref(0);
+const minExpirationDate = ref(getMinExpirationDate());
 const isExpirationValid = computed(() =>
   form.value.expiration
     ? form.value.expiration === initialForm.value?.expiration ||
-      isExpirationDateAllowed(form.value.expiration)
+      isExpirationDateAllowed(form.value.expiration, minExpirationDate.value)
     : !isExpirationIncomplete.value
 );
 
@@ -148,6 +152,7 @@ watch(
     };
     form.value = { ...initialForm.value };
     isExpirationIncomplete.value = false;
+    expirationInputKey.value += 1;
     errorMessage.value = undefined;
     submitted.value = false;
   },
@@ -190,6 +195,7 @@ const validateFrom = (): boolean => {
 const handleSubmit = async (): Promise<void> => {
   if (isBusy.value) return;
   submitted.value = true;
+  minExpirationDate.value = getMinExpirationDate();
   if (!validateFrom()) return;
   if (!props.accessKeyClient || !props.accessKey) {
     errorMessage.value = t(getI18nKey('error.fatal'));

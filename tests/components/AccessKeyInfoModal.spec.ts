@@ -263,6 +263,18 @@ describe('AccessKeyInfoModal', () => {
     expect(field(wrapper, 'expiration').classes()).toContain('is-invalid');
   });
 
+  it('clears a half typed date when reopened', async () => {
+    const wrapper = await mountModal();
+    const before = field(wrapper, 'expiration').element;
+    await typeIncompleteDate(field(wrapper, 'expiration'));
+    await wrapper.setProps({ visible: false });
+    await wrapper.setProps({ visible: true });
+    expect(field(wrapper, 'expiration').element).not.toBe(before);
+    expect(field<HTMLInputElement>(wrapper, 'expiration').element.value).toBe(
+      '2030-06-15'
+    );
+  });
+
   it('refuses a year with more than four digits', async () => {
     const wrapper = await mountModal();
     await field(wrapper, 'expiration').setValue('20301-01-01');

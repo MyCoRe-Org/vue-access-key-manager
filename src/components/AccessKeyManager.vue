@@ -95,8 +95,8 @@ const route = useRoute();
 interface ManagerProps {
   reference?: string;
   permissions?: string[];
-  currentPage?: number;
-  pageSize?: number;
+  currentPage?: number | string;
+  pageSize?: number | string;
   routerEnabled?: boolean;
 }
 
@@ -124,14 +124,17 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const { confirm } = useConfirmModal();
 
-const normalizePage = (page: number): number =>
-  Number.isInteger(page) && page > 0 ? page : 1;
+const toPositiveInteger = (value: unknown, fallback: number): number => {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+};
+const normalizePage = (page: unknown): number => toPositiveInteger(page, 1);
 
 const state = reactive({
   loading: false,
   totalCount: 0,
   currentPage: normalizePage(props.currentPage),
-  pageSize: props.pageSize,
+  pageSize: toPositiveInteger(props.pageSize, 8),
   accessKeys: [] as AccessKey[],
   selectedAccessKey: undefined as AccessKey | undefined,
   createModalVisible: false,
@@ -155,11 +158,13 @@ const withLoading = async <T,>(task: () => Promise<T>): Promise<T> => {
 };
 
 let latestRequest = 0;
+let latestPending = false;
 let shownPage = state.currentPage;
 let announcedPage = state.currentPage;
 const fetchAccessKeys = async (): Promise<boolean> => {
-  if (!accessKeyClient.value) return true;
+  if (!accessKeyClient.value) return false;
   const request = ++latestRequest;
+  latestPending = true;
   const page = state.currentPage;
   try {
     const result = await accessKeyClient.value.getAccessKeys({
@@ -177,6 +182,10 @@ const fetchAccessKeys = async (): Promise<boolean> => {
   } catch (error) {
     if (request !== latestRequest) return false;
     throw error;
+  } finally {
+    if (request === latestRequest) {
+      latestPending = false;
+    }
   }
 };
 const lastPage = (): number =>
@@ -205,7 +214,7 @@ const reload = async (task: () => Promise<void>): Promise<void> => {
   try {
     await withLoading(task);
   } catch (error) {
-    if (pendingLoads === 0) {
+    if (!latestPending) {
       state.currentPage = shownPage;
     }
     throw error;
@@ -229,6 +238,10 @@ watch(
     const target = normalizePage(page);
     if (target === state.currentPage) return;
     announcedPage = target;
+    if (!accessKeyClient.value) {
+      state.currentPage = target;
+      return;
+    }
     try {
       await changePage(target);
     } catch (error) {

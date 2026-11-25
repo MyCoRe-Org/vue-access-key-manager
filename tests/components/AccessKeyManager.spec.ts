@@ -244,6 +244,43 @@ describe('AccessKeyManager', () => {
       expect(wrapper.get('.page-item.active button').text()).toBe('1');
     });
 
+    it('accepts page and page size as strings from the template', async () => {
+      await mountManager({ currentPage: '3', pageSize: '5' });
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 10, limit: 5 })
+      );
+    });
+
+    it('keeps a page set from outside before the client is ready', async () => {
+      let resolveJwt: (token: string) => void = () => undefined;
+      vi.mocked(fetchJwt).mockReturnValue(
+        new Promise(resolve => {
+          resolveJwt = resolve;
+        })
+      );
+      mocks.client.getAccessKeys.mockResolvedValue({
+        accessKeys: keys(5, 10),
+        totalCount: 20,
+      });
+      const wrapper = mount(AccessKeyManager, {
+        global: {
+          plugins: [i18n, createAccessKeyManager({ baseUrl })],
+          stubs: { BaseModal: BaseModalStub, ConfirmModal: true },
+          config: { errorHandler: mocks.errorHandler },
+        },
+        props: { pageSize: 5, routerEnabled: true },
+      });
+      await wrapper.setProps({ currentPage: 3 });
+      resolveJwt('jwt-token');
+      await flushPromises();
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledTimes(1);
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 10, limit: 5 })
+      );
+      expect(wrapper.emitted('page-change')).toBeUndefined();
+      expect(mocks.router.push).not.toHaveBeenCalled();
+    });
+
     it('moves to the last page when started past it', async () => {
       mocks.client.getAccessKeys
         .mockResolvedValueOnce({ accessKeys: [], totalCount: 10 })
@@ -404,6 +441,40 @@ describe('AccessKeyManager', () => {
       await flushPromises();
       expect(wrapper.emitted('page-change')).toEqual([[2]]);
       expect(mocks.router.push).toHaveBeenCalledTimes(1);
+    });
+
+    it('rolls back when the newest page fails while an older one is loading', async () => {
+      mocks.client.getAccessKeys.mockResolvedValueOnce({
+        accessKeys: keys(1),
+        totalCount: 3,
+      });
+      const wrapper = await mountManager({ pageSize: 1 });
+      let resolveOlder: (value: unknown) => void = () => undefined;
+      let rejectNewer: (error: Error) => void = () => undefined;
+      mocks.client.getAccessKeys
+        .mockReturnValueOnce(
+          new Promise(resolve => {
+            resolveOlder = resolve;
+          })
+        )
+        .mockReturnValueOnce(
+          new Promise((_, reject) => {
+            rejectNewer = reject;
+          })
+        );
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      await wrapper.get('button[aria-label="3"]').trigger('click');
+      rejectNewer(new Error('server error'));
+      await flushPromises();
+      resolveOlder({ accessKeys: [keys(1, 1)[0]], totalCount: 3 });
+      await flushPromises();
+      expect(wrapper.get('.page-item.active button').text()).toBe('1');
+      expect(
+        wrapper.getComponent(AccessKeyTable).props('accessKeys')[0].id
+      ).toBe('key-1');
+      expect(
+        wrapper.get('button[aria-label="3"]').attributes('disabled')
+      ).toBeUndefined();
     });
 
     it('ignores the response of an older request', async () => {
