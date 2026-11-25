@@ -6,6 +6,7 @@ import ExpirationInput from '@/components/inputs/ExpirationInput.vue';
 import PermissionInput from '@/components/inputs/PermissionInput.vue';
 import ReferenceInput from '@/components/inputs/ReferenceInput.vue';
 import SecretInput from '@/components/inputs/SecretInput.vue';
+import { getI18nKey } from '@/common/utils';
 import { createTestI18n } from '../helpers';
 
 const global = { plugins: [createTestI18n()] };
@@ -137,9 +138,24 @@ describe('PermissionInput', () => {
     });
     expect(wrapper.find('input').exists()).toBe(false);
     const options = wrapper.findAll('option');
-    expect(options.map(o => o.text())).toEqual(['read', 'writedb']);
+    expect(options.map(o => o.text())).toEqual([
+      getI18nKey('select'),
+      'read',
+      'writedb',
+    ]);
     await wrapper.get('select').setValue('writedb');
     expect(wrapper.emitted('update:modelValue')).toEqual([['writedb']]);
+  });
+
+  it('shows a disabled placeholder until a permission is chosen', () => {
+    const wrapper = mount(PermissionInput, {
+      global,
+      props: { permissions: ['read'], invalid: false, modelValue: '' },
+    });
+    const placeholder = wrapper.get<HTMLOptionElement>('option');
+    expect(placeholder.element.value).toBe('');
+    expect(placeholder.element.disabled).toBe(true);
+    expect(wrapper.get<HTMLSelectElement>('select').element.value).toBe('');
   });
 
   it('renders a free text input without permissions', async () => {
@@ -194,6 +210,18 @@ describe('ReferenceInput', () => {
 });
 
 describe('SecretInput', () => {
+  it('puts the button directly into the Bootstrap 5 input group', () => {
+    const wrapper = mount(SecretInput, {
+      global,
+      props: { invalid: false },
+    });
+    const group = wrapper.get('.input-group');
+    expect(group.classes()).toEqual(['input-group']);
+    expect(
+      Array.from(group.element.children).map(child => child.tagName)
+    ).toEqual(['BUTTON', 'INPUT']);
+  });
+
   it('generates a random secret on button click', async () => {
     const wrapper = mount(SecretInput, {
       global,

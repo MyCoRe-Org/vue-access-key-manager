@@ -192,10 +192,12 @@ describe('CreateAccessKeyModal', () => {
   it('offers the given permissions as select options', () => {
     const wrapper = mountModal({ permissions: ['read', 'writedb'] });
     expect(field(wrapper, 'permission').element.tagName).toBe('SELECT');
-    expect(wrapper.findAll('option').map(o => o.text())).toEqual([
-      'read',
-      'writedb',
-    ]);
+    expect(
+      wrapper
+        .findAll('option')
+        .filter(o => !(o.element as HTMLOptionElement).disabled)
+        .map(o => o.text())
+    ).toEqual(['read', 'writedb']);
   });
 
   it('shows the error message and stays open when creation fails', async () => {

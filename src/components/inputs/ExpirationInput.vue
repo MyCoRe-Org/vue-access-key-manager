@@ -2,20 +2,18 @@
   <label :for="id" class="form-label">
     {{ t(getI18nKey('label.expiration')) }}
   </label>
-  <div class="input-group">
-    <input
-      :id="id"
-      v-model="model"
-      :min="min"
-      max="9999-12-31"
-      type="date"
-      class="form-control"
-      :class="{ 'is-invalid': invalid }"
-      @focus="updateMin"
-      @input="checkInput"
-      @blur="checkInput"
-    />
-  </div>
+  <input
+    :id="id"
+    v-model="model"
+    :min="min"
+    max="9999-12-31"
+    type="date"
+    class="form-control"
+    :class="{ 'is-invalid': invalid }"
+    @focus="updateMin"
+    @input="checkInput"
+    @blur="checkInput"
+  />
 </template>
 
 <script setup lang="ts">

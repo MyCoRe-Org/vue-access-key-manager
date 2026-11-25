@@ -2,17 +2,15 @@
   <label :for="id" class="form-label">
     {{ t(getI18nKey('label.secret')) }}
   </label>
-  <div class="input-group mb-3">
-    <span class="input-group-prepend">
-      <button
-        class="btn btn-primary"
-        type="button"
-        aria-label="generate secret"
-        @click="generateSecret"
-      >
-        <i class="fa fa-random" />
-      </button>
-    </span>
+  <div class="input-group">
+    <button
+      class="btn btn-primary"
+      type="button"
+      aria-label="generate secret"
+      @click="generateSecret"
+    >
+      <i class="fa fa-random" />
+    </button>
     <input
       :id="id"
       v-model="model"

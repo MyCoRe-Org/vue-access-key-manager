@@ -9,6 +9,7 @@
     class="form-select"
     :class="{ 'is-invalid': invalid }"
   >
+    <option value="" disabled>{{ t(getI18nKey('select')) }}</option>
     <option v-for="option in permissions" :key="option" :value="option">
       {{ option }}
     </option>
