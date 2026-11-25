@@ -31,9 +31,8 @@ defineProps<{
 const model = defineModel<number | string | null>();
 const incomplete = defineModel<boolean>('incomplete', { default: false });
 const input = useTemplateRef<HTMLInputElement>('input');
-const checkInput = (): boolean => {
+const checkInput = (): void => {
   incomplete.value = input.value?.validity.badInput ?? false;
-  return incomplete.value;
 };
 defineExpose({ checkInput });
 const min = ref(getMinExpirationDate());
