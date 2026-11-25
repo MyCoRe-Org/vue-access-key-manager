@@ -176,6 +176,74 @@ describe('AccessKeyManager', () => {
       });
     });
 
+    it.each([0, -3, Number.NaN, 1.5])(
+      'starts on page 1 for the invalid page %s',
+      async currentPage => {
+        await mountManager({ currentPage, pageSize: 5 });
+        expect(mocks.client.getAccessKeys).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 0, limit: 5 })
+        );
+      }
+    );
+
+    it('loads a page set from outside without announcing it again', async () => {
+      mocks.client.getAccessKeys.mockImplementation(
+        async ({ offset = 0, limit }: { offset?: number; limit: number }) => ({
+          accessKeys: keys(Math.min(limit, 20 - offset), offset),
+          totalCount: 20,
+        })
+      );
+      const wrapper = await mountManager({ pageSize: 5, routerEnabled: true });
+      await wrapper.setProps({ currentPage: 3 });
+      await flushPromises();
+      expect(mocks.client.getAccessKeys).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 10, limit: 5 })
+      );
+      expect(wrapper.get('.page-item.active button').text()).toBe('3');
+      expect(wrapper.emitted('page-change')).toBeUndefined();
+      expect(mocks.router.push).not.toHaveBeenCalled();
+    });
+
+    it('does not reload when the page comes back as its own echo', async () => {
+      mocks.client.getAccessKeys.mockImplementation(
+        async ({ offset = 0, limit }: { offset?: number; limit: number }) => ({
+          accessKeys: keys(Math.min(limit, 20 - offset), offset),
+          totalCount: 20,
+        })
+      );
+      const wrapper = await mountManager({ pageSize: 5, routerEnabled: true });
+      await wrapper.get('button[aria-label="2"]').trigger('click');
+      await flushPromises();
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledTimes(2);
+      await wrapper.setProps({ currentPage: 2 });
+      await flushPromises();
+      expect(mocks.client.getAccessKeys).toHaveBeenCalledTimes(2);
+      expect(wrapper.emitted('page-change')).toEqual([[2]]);
+    });
+
+    it('moves to the last page when a page past it is set from outside', async () => {
+      mocks.client.getAccessKeys.mockImplementation(
+        async ({ offset = 0, limit }: { offset?: number; limit: number }) => ({
+          accessKeys: keys(Math.max(0, Math.min(limit, 20 - offset)), offset),
+          totalCount: 20,
+        })
+      );
+      const wrapper = await mountManager({ pageSize: 5, routerEnabled: true });
+      await wrapper.setProps({ currentPage: 9 });
+      await flushPromises();
+      expect(wrapper.get('.page-item.active button').text()).toBe('4');
+      expect(mocks.router.push).toHaveBeenCalledWith({ query: { page: '4' } });
+    });
+
+    it('reports a failing page set from outside', async () => {
+      const wrapper = await mountManager({ pageSize: 1 });
+      mocks.client.getAccessKeys.mockRejectedValue(new Error('server error'));
+      await wrapper.setProps({ currentPage: 2 });
+      await flushPromises();
+      expect(wrapper.emitted('error')).toHaveLength(1);
+      expect(wrapper.get('.page-item.active button').text()).toBe('1');
+    });
+
     it('moves to the last page when started past it', async () => {
       mocks.client.getAccessKeys
         .mockResolvedValueOnce({ accessKeys: [], totalCount: 10 })

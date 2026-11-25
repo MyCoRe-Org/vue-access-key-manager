@@ -67,6 +67,7 @@ import {
   onErrorCaptured,
   computed,
   reactive,
+  watch,
 } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -123,10 +124,13 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const { confirm } = useConfirmModal();
 
+const normalizePage = (page: number): number =>
+  Number.isInteger(page) && page > 0 ? page : 1;
+
 const state = reactive({
   loading: false,
   totalCount: 0,
-  currentPage: props.currentPage,
+  currentPage: normalizePage(props.currentPage),
   pageSize: props.pageSize,
   accessKeys: [] as AccessKey[],
   selectedAccessKey: undefined as AccessKey | undefined,
@@ -214,9 +218,24 @@ const reload = async (task: () => Promise<void>): Promise<void> => {
 const changePage = async (page: number): Promise<void> => {
   state.currentPage = page;
   await reload(async () => {
-    await fetchAccessKeys();
+    if ((await fetchAccessKeys()) && clampPage()) {
+      await fetchAccessKeys();
+    }
   });
 };
+watch(
+  () => props.currentPage,
+  async page => {
+    const target = normalizePage(page);
+    if (target === state.currentPage) return;
+    announcedPage = target;
+    try {
+      await changePage(target);
+    } catch (error) {
+      handleError(error);
+    }
+  }
+);
 const deleteAccessKey = async (accessKey: AccessKey): Promise<void> => {
   const title = t(getI18nKey('confirmRemove.title'));
   const message = t(getI18nKey('confirmRemove.text'), {
