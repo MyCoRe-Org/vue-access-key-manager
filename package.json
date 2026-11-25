@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@jsr/mycore__js-common": "^0.0.8",
-    "@mycore-org/vue-components": "^0.1.7",
+    "@mycore-org/vue-components": "^0.1.8",
     "@popperjs/core": "^2.11.8",
     "@types/node": "^22.19.17",
     "@vitejs/plugin-vue": "^5.2.4",
