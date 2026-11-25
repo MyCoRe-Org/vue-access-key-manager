@@ -6,6 +6,10 @@ updates:
       interval: monthly
     cooldown:
       default-days: 7
+      semver-major-days: 14
+    commit-message:
+      prefix: chore
+      include: scope
     ignore:
       - dependency-name: '@types/node'
         update-types:
@@ -25,6 +29,10 @@ updates:
           - version-update:semver-minor
       - dependency-name: '@jsr/mycore__js-common'
     groups:
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - '*'
       npm:
         patterns:
           - '*'
