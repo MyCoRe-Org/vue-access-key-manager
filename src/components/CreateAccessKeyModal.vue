@@ -1,7 +1,6 @@
 <template>
   <BaseModal
     id="createAccessKeyModal"
-    ref="createAccessKeyModalRef"
     v-model:visible="visible"
     :title="t(getI18nKey('title.createAccessKey'))"
     :busy="isBusy"
