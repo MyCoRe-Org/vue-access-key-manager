@@ -24,6 +24,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@jsr/mycore__js-common": "^0.0.8",
     "@mycore-org/vue-components": "^0.1.8",
     "@popperjs/core": "^2.11.8",
@@ -32,11 +33,12 @@
     "@vue/test-utils": "^2.6.0",
     "@vue/tsconfig": "^0.9.1",
     "bootstrap": "^5.3.9",
-    "eslint": "^9.39.4",
+    "eslint": "^10.15.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
-    "eslint-plugin-vue": "^9.33.0",
+    "eslint-plugin-vue": "^10.12.1",
     "font-awesome": "^4.7.0",
+    "globals": "^17.14.0",
     "jsdom": "^31.0.1",
     "prettier": "^3.10.1",
     "typescript": "^5.9.3",
@@ -45,6 +47,7 @@
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^5.1.1",
     "vue": "^3.5.45",
+    "vue-eslint-parser": "^10.4.2",
     "vue-i18n": "^11.4.22",
     "vue-router": "^4.6.4",
     "vue-tsc": "^2.2.12"
