@@ -10,6 +10,20 @@ updates:
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major
+      - dependency-name: 'vue'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: 'vue-router'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: 'vue-i18n'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@mycore-org/vue-components'
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+      - dependency-name: '@jsr/mycore__js-common'
     groups:
       npm:
         patterns:
